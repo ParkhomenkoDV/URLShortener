@@ -75,6 +75,7 @@ func TestShortenHandler(t *testing.T) {
 			manager.Shorten(w, req)
 
 			res := w.Result()
+			defer res.Body.Close()
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("Expected status %d, got %d", tt.wantStatus, res.StatusCode)
 			}
@@ -112,6 +113,7 @@ func TestExpandHandler(t *testing.T) {
 			manager.Expand(w, req)
 
 			res := w.Result()
+			defer res.Body.Close()
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("Expected status %d, got %d", tt.wantStatus, res.StatusCode)
 			}
