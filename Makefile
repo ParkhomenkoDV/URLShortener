@@ -17,11 +17,11 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/shortener
 
-TEST_NUM ?= 3
+case ?= 3
 
 test: build
 	chmod +x $(TEST_BINARY)
-	$(TEST_BINARY) -test.v -test.run=^TestIteration$(TEST_NUM)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -source-path=$(CPATH)/internal
+	$(TEST_BINARY) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -source-path=$(CPATH)
 	go test $(CPATH)/...
 
 run:

@@ -5,6 +5,35 @@ import (
 	"net/http"
 
 	"github.com/ParkhomenkoDV/URLShortener/internal/urlmanager"
+	"github.com/go-chi/chi/v5"
+)
+
+func main() {
+	manager, err := urlmanager.New("http://localhost:8080")
+	if err != nil {
+		panic(err)
+	}
+
+	r := chi.NewRouter()
+
+	r.Post("/", manager.Shorten)
+
+	r.Get("/{id}", manager.Expand)
+
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+
+	log.Printf("Server starting on %s \n", manager.URL)
+	log.Fatal(http.ListenAndServe(":"+manager.Port, r))
+}
+
+/*
+import (
+	"log"
+	"net/http"
+
+	"github.com/ParkhomenkoDV/URLShortener/internal/urlmanager"
 )
 
 func main() {
@@ -27,3 +56,4 @@ func main() {
 	log.Printf("Server starting on %s \n", manager.URL)
 	log.Fatal(http.ListenAndServe(":"+manager.Port, nil))
 }
+*/
