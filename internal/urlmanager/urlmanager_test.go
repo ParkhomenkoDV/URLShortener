@@ -1,4 +1,4 @@
-package main
+package urlmanager
 
 import (
 	"net/http"
@@ -21,13 +21,34 @@ func TestNewURLManager(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager, err := NewURLManager(tt.baseURL)
+			manager, err := New(tt.baseURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewURLManager() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && manager.baseURL != tt.baseURL {
-				t.Errorf("Expected baseURL %s, got %s", tt.baseURL, manager.baseURL)
+			if !tt.wantErr && manager.URL != tt.baseURL {
+				t.Errorf("Expected baseURL %s, got %s", tt.baseURL, manager.URL)
+			}
+		})
+	}
+}
+
+func Test_generateID(t *testing.T) {
+	tests := []struct {
+		name    string
+		urls    map[string]string
+		wantErr bool
+	}{
+		{"1", map[string]string{"https://test.com": ""}, false},
+		{"2", map[string]string{"https://gmail.com": ""}, false},
+		{"3", map[string]string{"https://yandex.ru": ""}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := generateID(tt.urls)
+			if _, ok := tt.urls[id]; ok {
+				t.Errorf("Generated non-unique ID %v", id)
 			}
 		})
 	}
@@ -45,7 +66,7 @@ func TestShortenHandler(t *testing.T) {
 		{"Empty body", http.MethodPost, "", http.StatusBadRequest},
 		{"Invalid URL", http.MethodPost, "ftp://test", http.StatusBadRequest},
 	}
-	manager, _ := NewURLManager("http://localhost:8080")
+	manager, _ := New("http://localhost:8080")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.body))
@@ -68,8 +89,8 @@ func TestShortenHandler(t *testing.T) {
 }
 
 func TestExpandHandler(t *testing.T) {
-	manager, _ := NewURLManager("http://localhost:8080")
-	manager.urls["test123"] = "https://google.com"
+	manager, _ := New("http://localhost:8080")
+	manager.URLs["test123"] = "https://google.com"
 
 	tests := []struct {
 		name       string
@@ -100,81 +121,6 @@ func TestExpandHandler(t *testing.T) {
 				if loc != tt.wantLoc {
 					t.Errorf("Expected Location %s, got %s", tt.wantLoc, loc)
 				}
-			}
-		})
-	}
-}
-
-/*
-func TestIntegration(t *testing.T) {
-	manager, _ := NewURLManager("http://localhost:8080")
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			manager.Shorten(w, r)
-		case http.MethodGet:
-			manager.Expand(w, r)
-		}
-	}))
-	defer ts.Close()
-
-	// Test shortening
-	origURL := "https://example.com"
-	resp, err := http.Post(ts.URL, "text/plain", strings.NewReader(origURL))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		t.Errorf("Expected status 201, got %d", resp.StatusCode)
-	}
-
-	shortURL, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test expanding
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	resp, err = client.Get(string(shortURL))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusTemporaryRedirect {
-		t.Errorf("Expected status 307, got %d", resp.StatusCode)
-	}
-
-	loc := resp.Header.Get("Location")
-	if loc != origURL {
-		t.Errorf("Expected Location %s, got %s", origURL, loc)
-	}
-}
-*/
-
-func Test_generateID(t *testing.T) {
-	tests := []struct {
-		name    string
-		urls    map[string]string
-		wantErr bool
-	}{
-		{"1", map[string]string{"https://test.com": ""}, false},
-		{"2", map[string]string{"https://gmail.com": ""}, false},
-		{"3", map[string]string{"https://yandex.ru": ""}, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			id := generateID(tt.urls)
-			if _, ok := tt.urls[id]; ok {
-				t.Errorf("Generated non-unique ID %v", id)
 			}
 		})
 	}

@@ -21,7 +21,7 @@ TEST_NUM ?= 2
 
 test: build
 	chmod +x $(TEST_BINARY)
-	$(TEST_BINARY) -test.v -test.run=^TestIteration$(TEST_NUM)$$ -binary-path=$(CPATH)/cmd/shortener/shortener
+	$(TEST_BINARY) -test.v -test.run=^TestIteration$(TEST_NUM)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -source-path=$(CPATH)/internal
 	go test $(CPATH)/...
 
 run:
