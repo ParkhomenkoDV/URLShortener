@@ -17,7 +17,7 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/shortener
 
-TEST_NUM ?= 2
+TEST_NUM ?= 3
 
 test: build
 	chmod +x $(TEST_BINARY)
@@ -26,5 +26,3 @@ test: build
 
 run:
 	go run $(CPATH)/cmd/shortener/main.go
-
-
