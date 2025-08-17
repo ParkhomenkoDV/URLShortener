@@ -8,16 +8,16 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func (hand *Handler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		http.Error(w, "ID is required", http.StatusBadRequest)
 		return
 	}
 
-	hand.mutex.Lock()
-	originalURL, exists := hand.data[id]
-	hand.mutex.Unlock()
+	h.mutex.Lock()
+	originalURL, exists := h.data[id]
+	h.mutex.Unlock()
 
 	if !exists {
 		http.Error(w, "URL not found", http.StatusNotFound)
