@@ -17,7 +17,7 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/shortener
 
-case ?= 3
+case ?= 4
 
 test: build
 	chmod +x $(TEST_BINARY)
