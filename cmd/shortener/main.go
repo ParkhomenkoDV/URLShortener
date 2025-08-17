@@ -4,56 +4,30 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/ParkhomenkoDV/URLShortener/internal/urlmanager"
+	"github.com/ParkhomenkoDV/URLShortener/internal/handler"
+	"github.com/ParkhomenkoDV/URLShortener/internal/service/server"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
-	manager, err := urlmanager.New("http://localhost:8080")
-	if err != nil {
-		panic(err)
-	}
+	config := server.New()
+
+	handler := handler.New(config)
 
 	r := chi.NewRouter()
 
-	r.Post("/", manager.Shorten)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
-	r.Get("/{id}", manager.Expand)
+	r.Post("/", handler.Post)
+	r.Post("/api/shorten", handler.PostJSON) // Новый endpoint для JSON
+	r.Get("/{id}", handler.Get)
 
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
-	log.Printf("Server starting on %s \n", manager.URL)
-	log.Fatal(http.ListenAndServe(":"+manager.Port, r))
+	log.Printf("Server started at %s \n", config.ServerAddress)
+	log.Fatal(http.ListenAndServe(config.ServerAddress, r))
 }
-
-/*
-import (
-	"log"
-	"net/http"
-
-	"github.com/ParkhomenkoDV/URLShortener/internal/urlmanager"
-)
-
-func main() {
-	manager, err := urlmanager.New("http://localhost:8080")
-	if err != nil {
-		panic(err)
-	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			manager.Shorten(w, r)
-		case http.MethodGet:
-			manager.Expand(w, r)
-		default:
-			http.Error(w, "Invalid request method", http.StatusBadRequest)
-		}
-	})
-
-	log.Printf("Server starting on %s \n", manager.URL)
-	log.Fatal(http.ListenAndServe(":"+manager.Port, nil))
-}
-*/
