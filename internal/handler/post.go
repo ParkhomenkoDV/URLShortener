@@ -69,15 +69,20 @@ func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ShortenResponse{Result: shortURL})
 }
 
-func validateURL(rawURL string) error {
+// normalizationURL - нормализация url.
+func normalizationURL(rawURL string) string {
 	rawURL = strings.TrimSpace(rawURL)
-	if rawURL == "" {
-		return fmt.Errorf("url cannot be empty")
-	}
 
 	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
 		rawURL = "http://" + rawURL
 	}
+
+	return rawURL
+}
+
+// validateURL - валидация url.
+func validateURL(rawURL string) error {
+	rawURL = normalizationURL(rawURL)
 
 	if _, err := url.ParseRequestURI(rawURL); err != nil {
 		return fmt.Errorf("invalid URL format")
