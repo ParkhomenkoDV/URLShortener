@@ -28,17 +28,11 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	originalURL := strings.TrimSpace(string(body))
-	if err := validateURL(originalURL); err != nil {
+	shortURL, err := h.processURL(originalURL)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	shortKey := utils.GenerateShortURL(8)
-	shortURL := h.config.BaseURL + "/" + shortKey
-
-	h.mutex.Lock()
-	h.data[shortKey] = originalURL
-	h.mutex.Unlock()
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
@@ -52,36 +46,60 @@ func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if err := validateURL(req.URL); err != nil {
+	shortURL, err := h.processURL(req.URL)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	shortKey := utils.GenerateShortURL(8)
-	shortURL := h.config.BaseURL + "/" + shortKey
-
-	h.mutex.Lock()
-	h.data[shortKey] = req.URL
-	h.mutex.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(ShortenResponse{Result: shortURL})
 }
 
-func validateURL(rawURL string) error {
+// normalizationURL - нормализация url.
+func normalizationURL(rawURL string) string {
 	rawURL = strings.TrimSpace(rawURL)
-	if rawURL == "" {
-		return fmt.Errorf("url cannot be empty")
-	}
 
 	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
 		rawURL = "http://" + rawURL
 	}
+
+	return rawURL
+}
+
+// validateURL - валидация url.
+func validateURL(rawURL string) error {
+	rawURL = normalizationURL(rawURL)
 
 	if _, err := url.ParseRequestURI(rawURL); err != nil {
 		return fmt.Errorf("invalid URL format")
 	}
 
 	return nil
+}
+
+func (h *Handler) processURL(rawURL string) (string, error) {
+	if err := validateURL(rawURL); err != nil {
+		return "", err
+	}
+
+	var shortKey string
+	for {
+		shortKey = utils.GenerateShortURL(8)
+		h.mutex.Lock()
+		_, exists := h.data[shortKey]
+		h.mutex.Unlock()
+		if !exists {
+			break
+		}
+	}
+
+	shortURL := h.config.BaseURL + "/" + shortKey
+
+	h.mutex.Lock()
+	h.data[shortKey] = normalizationURL(rawURL)
+	h.mutex.Unlock()
+
+	return shortURL, nil
 }

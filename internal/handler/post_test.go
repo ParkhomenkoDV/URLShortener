@@ -76,3 +76,42 @@ func TestPostHandler(t *testing.T) {
 		}
 	})
 }
+
+func Test_normalizationURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		rawURL string
+		want   string
+	}{
+		{"1", "yandex.ru", "http://yandex.ru"},
+		{"2", "http://yandex.ru", "http://yandex.ru"},
+		{"3", "https://yandex.ru", "https://yandex.ru"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizationURL(tt.rawURL)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_validateURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawURL  string
+		wantErr bool
+	}{
+		{"1", "yandex.ru", false},
+		{"2", "http://yandex.ru", false},
+		{"3", "https://yandex.ru", false},
+		{"4", "y a n d e x", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateURL(tt.rawURL); (err != nil) != tt.wantErr {
+				t.Errorf("validateURL() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
