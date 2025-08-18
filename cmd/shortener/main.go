@@ -11,7 +11,10 @@ import (
 )
 
 func main() {
-	config := server.New()
+	config, err := server.New()
+	if err != nil {
+		panic(err)
+	}
 
 	handler := handler.New(config)
 

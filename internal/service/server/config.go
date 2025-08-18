@@ -2,7 +2,6 @@ package server
 
 import (
 	"flag"
-	"fmt"
 	"net/url"
 )
 
@@ -13,7 +12,7 @@ type Config struct {
 	BaseURL       string
 }
 
-func New() Config {
+func New() (Config, error) {
 	config := Config{}
 
 	flag.StringVar(&config.ServerAddress, "a", defaultAddress, "Server address")
@@ -29,8 +28,8 @@ func New() Config {
 	}
 
 	if _, err := url.ParseRequestURI(config.BaseURL); err != nil {
-		panic(fmt.Sprintf("Invalid base URL: %s", config.BaseURL))
+		return config, err
 	}
 
-	return config
+	return config, nil
 }
