@@ -33,7 +33,14 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortKey := utils.GenerateShortURL(8)
+	var shortKey string
+	for {
+		shortKey = utils.GenerateShortURL(8)
+		if _, ok := h.data[shortKey]; !ok {
+			break
+		}
+	}
+
 	shortURL := h.config.BaseURL + "/" + shortKey
 
 	h.mutex.Lock()
@@ -57,7 +64,14 @@ func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortKey := utils.GenerateShortURL(8)
+	var shortKey string
+	for {
+		shortKey = utils.GenerateShortURL(8)
+		if _, ok := h.data[shortKey]; !ok {
+			break
+		}
+	}
+
 	shortURL := h.config.BaseURL + "/" + shortKey
 
 	h.mutex.Lock()
