@@ -28,24 +28,11 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	originalURL := strings.TrimSpace(string(body))
-	if err := validateURL(originalURL); err != nil {
+	shortURL, err := h.processURL(originalURL)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	var shortKey string
-	for {
-		shortKey = utils.GenerateShortURL(8)
-		if _, ok := h.data[shortKey]; !ok {
-			break
-		}
-	}
-
-	shortURL := h.config.BaseURL + "/" + shortKey
-
-	h.mutex.Lock()
-	h.data[shortKey] = originalURL
-	h.mutex.Unlock()
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
@@ -59,24 +46,11 @@ func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if err := validateURL(req.URL); err != nil {
+	shortURL, err := h.processURL(req.URL)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	var shortKey string
-	for {
-		shortKey = utils.GenerateShortURL(8)
-		if _, ok := h.data[shortKey]; !ok {
-			break
-		}
-	}
-
-	shortURL := h.config.BaseURL + "/" + shortKey
-
-	h.mutex.Lock()
-	h.data[shortKey] = req.URL
-	h.mutex.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -103,4 +77,29 @@ func validateURL(rawURL string) error {
 	}
 
 	return nil
+}
+
+func (h *Handler) processURL(rawURL string) (string, error) {
+	if err := validateURL(rawURL); err != nil {
+		return "", err
+	}
+
+	var shortKey string
+	for {
+		shortKey = utils.GenerateShortURL(8)
+		h.mutex.Lock()
+		_, exists := h.data[shortKey]
+		h.mutex.Unlock()
+		if !exists {
+			break
+		}
+	}
+
+	shortURL := h.config.BaseURL + "/" + shortKey
+
+	h.mutex.Lock()
+	h.data[shortKey] = normalizationURL(rawURL)
+	h.mutex.Unlock()
+
+	return shortURL, nil
 }
