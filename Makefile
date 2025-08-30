@@ -2,7 +2,8 @@
 CPATH := /Users/daniilandryushin/Projects/URLShortener
 BINARY_NAME := shortener
 BINARY_PATH := $(CPATH)/cmd/shortener/$(BINARY_NAME)
-TEST_BINARY := $(CPATH)/shortenertest-darwin-arm64
+TEST_BINARY := $(CPATH)/shortenertest_v2-darwin-arm64
+SERVER_PORT := 8080
 
 .PHONY: vendor path test run build
 
@@ -21,7 +22,7 @@ case ?= 5
 
 test: build
 	chmod +x $(TEST_BINARY)
-	$(TEST_BINARY) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -source-path=$(CPATH)
+	$(TEST_BINARY) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -source-path=$(CPATH)
 	go test $(CPATH)/...
 
 run:
