@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ParkhomenkoDV/URLShortener/internal/handler"
+	"github.com/ParkhomenkoDV/URLShortener/internal/logger"
 	"github.com/ParkhomenkoDV/URLShortener/internal/service/server"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -15,6 +16,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Инициализация логгера
+	logger.New()
 
 	handler := handler.New(config)
 
