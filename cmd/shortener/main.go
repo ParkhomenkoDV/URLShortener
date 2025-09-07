@@ -26,9 +26,10 @@ func main() {
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(logger.LoggingMiddleware)
 
 	r.Post("/", handler.Post)
-	r.Post("/api/shorten", handler.PostJSON) // Новый endpoint для JSON
+	r.Post("/api/shorten", handler.PostJSON)
 	r.Get("/{id}", handler.Get)
 
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {

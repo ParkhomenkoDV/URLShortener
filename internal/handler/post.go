@@ -39,6 +39,12 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
+	// Проверяем Content-Type
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Content-Type must be application/json", http.StatusBadRequest)
+		return
+	}
+
 	var req ShortenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
