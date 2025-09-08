@@ -23,7 +23,7 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/$(BINARY_NAME)
 
-case ?= 7
+case ?= 8
 
 test: build
 	#chmod +x $(TEST_BINARY_V1)

@@ -39,7 +39,6 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
-	// Проверяем Content-Type
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Content-Type must be application/json", http.StatusBadRequest)
 		return
@@ -85,6 +84,7 @@ func validateURL(rawURL string) error {
 	return nil
 }
 
+// processURL - сокращение + запись URL.
 func (h *Handler) processURL(rawURL string) (string, error) {
 	if err := validateURL(rawURL); err != nil {
 		return "", err

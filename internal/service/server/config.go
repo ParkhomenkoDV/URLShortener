@@ -12,6 +12,7 @@ const defaultAddress = "localhost:8080"
 type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"` // envDefault:"localhost:8080"`
 	BaseURL       string `env:"BASE_URL"`       // envDefault:"http://localhost:8080"`
+	FileStorage   string `env:"FILE_STORAGE_PATH"`
 }
 
 func New() (Config, error) {
@@ -33,6 +34,9 @@ func New() (Config, error) {
 	}
 	if config.BaseURL == "" {
 		config.BaseURL = configFlags.BaseURL
+	}
+	if config.FileStorage == "" {
+		config.FileStorage = configFlags.FileStorage
 	}
 
 	if _, err := url.ParseRequestURI(config.BaseURL); err != nil {
