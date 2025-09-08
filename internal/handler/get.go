@@ -16,7 +16,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mutex.Lock()
-	originalURL, exists := h.data[id]
+	originalURL, exists := h.db.Get(id)
 	h.mutex.Unlock()
 
 	if !exists {
