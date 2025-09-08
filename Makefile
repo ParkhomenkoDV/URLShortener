@@ -2,7 +2,7 @@
 CPATH := /Users/daniilandryushin/Projects/URLShortener
 BINARY_NAME := shortener
 BINARY_PATH := $(CPATH)/cmd/shortener/$(BINARY_NAME)
-STORAGE_PATH := $(CPATH)/internal/storage
+STORAGE_PATH := $(CPATH)/data/db.json
 
 TEST_BINARY_V1 := $(CPATH)/shortenertest-darwin-arm64
 TEST_BINARY_V2 := $(CPATH)/shortenertest_v2-darwin-arm64
@@ -23,7 +23,7 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/$(BINARY_NAME)
 
-case ?= 8
+case ?= 9
 
 test: build
 	#chmod +x $(TEST_BINARY_V1)
