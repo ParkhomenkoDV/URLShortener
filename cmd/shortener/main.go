@@ -6,9 +6,10 @@ import (
 
 	"github.com/ParkhomenkoDV/URLShortener/internal/handler"
 	"github.com/ParkhomenkoDV/URLShortener/internal/logger"
+	"github.com/ParkhomenkoDV/URLShortener/internal/middleware"
 	"github.com/ParkhomenkoDV/URLShortener/internal/service/server"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -17,15 +18,15 @@ func main() {
 		panic(err)
 	}
 
-	// Инициализация логгера
 	logger.New()
 
 	handler := handler.New(config)
 
 	r := chi.NewRouter()
-
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(middleware.GzipRequestMiddleware)
+	r.Use(middleware.GzipResponseMiddleware)
+	r.Use(chiMiddleware.Logger)
+	r.Use(chiMiddleware.Recoverer)
 	r.Use(logger.LoggingMiddleware)
 
 	r.Post("/", handler.Post)
