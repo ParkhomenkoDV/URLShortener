@@ -14,9 +14,9 @@ type Handler struct {
 	db     *storage.DB
 }
 
-func New(config config.Config, db *storage.DB) *Handler {
+func New(config *config.Config, db *storage.DB) *Handler {
 	return &Handler{
-		config: config,
+		config: *config,
 		db:     db,
 	}
 }

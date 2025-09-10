@@ -25,7 +25,7 @@ func main() {
 	db := storage.New()
 	db.LoadFromFile(cfg.FileStorage)
 
-	hand := handler.New(cfg, db)
+	hand := handler.New(&cfg, db)
 
 	r := chi.NewRouter()
 	r.Use(middleware.GzipRequestMiddleware)

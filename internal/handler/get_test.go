@@ -15,7 +15,7 @@ import (
 func TestGetHandler(t *testing.T) {
 	cfg := config.Config{BaseURL: "http://localhost:8080"}
 	db := storage.New()
-	h := New(cfg, db)
+	h := New(&cfg, db)
 
 	h.db.Set("validID", "https://example.com")
 	h.db.Set("noScheme", "example.com")

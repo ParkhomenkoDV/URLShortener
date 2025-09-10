@@ -15,7 +15,7 @@ func TestNewHandler(t *testing.T) {
 	}
 	db := storage.New()
 
-	h := New(cfg, db)
+	h := New(&cfg, db)
 	require.NotNil(t, h)
 	require.Equal(t, cfg, h.config)
 	require.NotNil(t, h.db)

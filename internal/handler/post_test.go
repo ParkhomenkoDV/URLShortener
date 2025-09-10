@@ -16,7 +16,7 @@ import (
 func TestPostHandler(t *testing.T) {
 	cfg := config.Config{BaseURL: "http://localhost:8080"}
 	db := storage.New()
-	h := New(cfg, db)
+	h := New(&cfg, db)
 
 	t.Run("plain text request", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader("https://example.com"))

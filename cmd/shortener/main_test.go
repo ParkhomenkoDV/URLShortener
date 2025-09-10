@@ -18,7 +18,7 @@ import (
 func TestIntegration(t *testing.T) {
 	cfg := config.Config{BaseURL: "http://localhost:8080"}
 	db := storage.New()
-	h := handler.New(cfg, db)
+	h := handler.New(&cfg, db)
 
 	t.Run("full flow: post then get", func(t *testing.T) {
 		// Post request to shorten URL
