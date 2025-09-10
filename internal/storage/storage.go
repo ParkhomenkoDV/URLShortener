@@ -37,10 +37,11 @@ func (db *DB) Set(key, value string) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if _, exist := db.data[key]; !exist {
+	_, exists := db.data[key]
+	db.data[key] = value
+	if !exists {
 		db.count++
 	}
-	db.data[key] = value
 }
 
 func (db *DB) Delete(key string) error {
@@ -122,16 +123,13 @@ func (db *DB) LoadFromFile(filePath string) error {
 		return err
 	}
 
-	data, counter := make(map[string]string), 0
+	data := make(map[string]string)
 	for _, record := range records {
 		data[record.ShortURL] = record.OriginalURL
-		if record.ID > counter {
-			counter = record.ID
-		}
 	}
 
 	db.data = data
-	db.count = counter
+	db.count = len(data)
 
 	return nil
 }
