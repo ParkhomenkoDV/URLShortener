@@ -26,21 +26,27 @@ func New() *DB {
 // Get - получение значения по ключу.
 func (db *DB) Get(key string) (string, bool) {
 	mutex.Lock()
-	value, exists := db.data[key]
-	mutex.Unlock()
+	defer mutex.Unlock()
 
+	value, exists := db.data[key]
 	return value, exists
 }
 
 // Set - установка значения по ключу.
 func (db *DB) Set(key, value string) {
 	mutex.Lock()
+	defer mutex.Unlock()
+
+	if _, exist := db.data[key]; !exist {
+		db.count++
+	}
 	db.data[key] = value
-	db.count++
-	mutex.Unlock()
 }
 
 func (db *DB) Delete(key string) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	_, exists := db.data[key]
 	if !exists {
 		return fmt.Errorf("key not found")
@@ -48,6 +54,13 @@ func (db *DB) Delete(key string) error {
 	delete(db.data, key)
 	db.count--
 	return nil
+}
+
+func (db *DB) Count() int {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	return db.count
 }
 
 // record - запись об URLs.
@@ -59,6 +72,9 @@ type record struct {
 
 // SaveToFile - сохранение данных в JSON файл.
 func (db *DB) SaveToFile(filePath string) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	var records []record
 
 	counter := 0
@@ -84,6 +100,9 @@ func (db *DB) SaveToFile(filePath string) error {
 
 // LoadFromFile - загрузка данных из JSON файла.
 func (db *DB) LoadFromFile(filePath string) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if _, err := os.Stat(filePath); os.IsNotExist(err) { // файла не существует
 		return err
 	}
