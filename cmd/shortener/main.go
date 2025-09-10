@@ -23,6 +23,7 @@ func main() {
 	logger.New()
 
 	db := storage.New()
+	db.LoadFromFile(cfg.FileStorage)
 
 	hand := handler.New(cfg, db)
 
