@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 )
+
+var mutex sync.Mutex
 
 type DB struct {
 	data  map[string]string
@@ -22,14 +25,19 @@ func New() *DB {
 
 // Get - получение значения по ключу.
 func (db *DB) Get(key string) (string, bool) {
+	mutex.Lock()
 	value, exists := db.data[key]
+	mutex.Unlock()
+
 	return value, exists
 }
 
 // Set - установка значения по ключу.
 func (db *DB) Set(key, value string) {
+	mutex.Lock()
 	db.data[key] = value
 	db.count++
+	mutex.Unlock()
 }
 
 func (db *DB) Delete(key string) error {

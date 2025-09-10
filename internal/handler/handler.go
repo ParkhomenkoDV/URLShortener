@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"sync"
-
 	"github.com/ParkhomenkoDV/URLShortener/internal/config"
 	"github.com/ParkhomenkoDV/URLShortener/internal/storage"
 )
@@ -10,7 +8,6 @@ import (
 type Handler struct {
 	//repo   storage.Repository // not used yet
 	config config.Config
-	mutex  sync.Mutex
 	db     *storage.DB
 }
 

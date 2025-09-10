@@ -86,9 +86,7 @@ func (h *Handler) processURL(rawURL string) (string, error) {
 	var shortKey string
 	for {
 		shortKey = utils.GenerateShortURL(8)
-		h.mutex.Lock()
 		_, exists := h.db.Get(shortKey)
-		h.mutex.Unlock()
 		if !exists {
 			break
 		}
@@ -96,9 +94,7 @@ func (h *Handler) processURL(rawURL string) (string, error) {
 
 	shortURL := h.config.BaseURL + "/" + shortKey
 
-	h.mutex.Lock()
 	h.db.Set(shortKey, normalizationURL(rawURL))
-	h.mutex.Unlock()
 
 	return shortURL, nil
 }

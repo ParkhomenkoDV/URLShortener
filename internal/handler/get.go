@@ -15,9 +15,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.mutex.Lock()
 	originalURL, exists := h.db.Get(id)
-	h.mutex.Unlock()
 
 	if !exists {
 		http.Error(w, "URL not found", http.StatusNotFound)
