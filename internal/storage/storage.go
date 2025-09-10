@@ -12,7 +12,7 @@ type DB struct {
 	count int
 }
 
-// New - создание новой БД.
+// New - создание нового объекта БД.
 func New() *DB {
 	return &DB{
 		data:  make(map[string]string),
