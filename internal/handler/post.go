@@ -8,16 +8,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/ParkhomenkoDV/URLShortener/internal/model"
 	"github.com/ParkhomenkoDV/URLShortener/internal/utils"
 )
-
-type ShortenRequest struct {
-	URL string `json:"url"`
-}
-
-type ShortenResponse struct {
-	Result string `json:"result"`
-}
 
 func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
@@ -44,7 +37,7 @@ func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req ShortenRequest
+	var req model.Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
@@ -59,7 +52,7 @@ func (h *Handler) PostJSON(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(ShortenResponse{Result: shortURL})
+	json.NewEncoder(w).Encode(model.Response{Result: shortURL})
 }
 
 // normalizationURL - нормализация url.
@@ -93,9 +86,7 @@ func (h *Handler) processURL(rawURL string) (string, error) {
 	var shortKey string
 	for {
 		shortKey = utils.GenerateShortURL(8)
-		h.mutex.Lock()
-		_, exists := h.data[shortKey]
-		h.mutex.Unlock()
+		_, exists := h.db.Get(shortKey)
 		if !exists {
 			break
 		}
@@ -103,9 +94,7 @@ func (h *Handler) processURL(rawURL string) (string, error) {
 
 	shortURL := h.config.BaseURL + "/" + shortKey
 
-	h.mutex.Lock()
-	h.data[shortKey] = normalizationURL(rawURL)
-	h.mutex.Unlock()
+	h.db.Set(shortKey, normalizationURL(rawURL))
 
 	return shortURL, nil
 }

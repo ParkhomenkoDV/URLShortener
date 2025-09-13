@@ -6,18 +6,20 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ParkhomenkoDV/URLShortener/internal/service/server"
+	"github.com/ParkhomenkoDV/URLShortener/internal/config"
+	"github.com/ParkhomenkoDV/URLShortener/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetHandler(t *testing.T) {
-	cfg := server.Config{BaseURL: "http://localhost:8080"}
-	h := New(cfg)
+	cfg := config.Config{BaseURL: "http://localhost:8080"}
+	db := storage.New()
+	h := New(&cfg, db)
 
-	h.data["validID"] = "https://example.com"
-	h.data["noScheme"] = "example.com"
-	h.data["invalidURL"] = "http://invalid url.com"
+	h.db.Set("validID", "https://example.com")
+	h.db.Set("noScheme", "example.com")
+	h.db.Set("invalidURL", "http://invalid url.com")
 
 	tests := []struct {
 		name       string

@@ -8,13 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ParkhomenkoDV/URLShortener/internal/service/server"
+	"github.com/ParkhomenkoDV/URLShortener/internal/config"
+	"github.com/ParkhomenkoDV/URLShortener/internal/storage"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPostHandler(t *testing.T) {
-	cfg := server.Config{BaseURL: "http://localhost:8080"}
-	h := New(cfg)
+	cfg := config.Config{BaseURL: "http://localhost:8080"}
+	db := storage.New()
+	h := New(&cfg, db)
 
 	t.Run("plain text request", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader("https://example.com"))

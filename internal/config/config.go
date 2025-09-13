@@ -1,4 +1,4 @@
-package server
+package config
 
 import (
 	"flag"
@@ -15,7 +15,7 @@ type Config struct {
 	FileStorage   string `env:"FILE_STORAGE_PATH"`
 }
 
-func New() (Config, error) {
+func NewConfig() (Config, error) {
 	config := Config{}
 
 	err := env.Parse(&config)
@@ -27,6 +27,7 @@ func New() (Config, error) {
 
 	flag.StringVar(&configFlags.ServerAddress, "a", defaultAddress, "Server address")
 	flag.StringVar(&configFlags.BaseURL, "b", "http://"+defaultAddress, "Base URL")
+	flag.StringVar(&configFlags.FileStorage, "f", "data/db.json", "File Storage")
 	flag.Parse()
 
 	if config.ServerAddress == "" {

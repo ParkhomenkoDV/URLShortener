@@ -1,21 +1,19 @@
 package handler
 
 import (
-	"sync"
-
-	"github.com/ParkhomenkoDV/URLShortener/internal/service/server"
+	"github.com/ParkhomenkoDV/URLShortener/internal/config"
+	"github.com/ParkhomenkoDV/URLShortener/internal/storage"
 )
 
 type Handler struct {
 	//repo   storage.Repository // not used yet
-	config server.Config
-	mutex  sync.Mutex
-	data   map[string]string
+	config config.Config
+	db     *storage.DB
 }
 
-func New(config server.Config) *Handler {
+func New(config *config.Config, db *storage.DB) *Handler {
 	return &Handler{
-		config: config,
-		data:   make(map[string]string),
+		config: *config,
+		db:     db,
 	}
 }
