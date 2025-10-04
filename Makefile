@@ -10,6 +10,8 @@ TEST_BINARY_BETA := $(CPATH)/shortenertestbeta-darwin-arm64
 
 SERVER_PORT := 8080
 
+DB_DSN = pgsql:host=192.168.1.5;port=5432;dbname=test_db
+
 .PHONY: vendor path test run build
 
 vendor:
@@ -23,15 +25,15 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/$(BINARY_NAME)
 
-case ?= 9
+case ?= 10
 
 test: build
 	#chmod +x $(TEST_BINARY_V1)
-	#$(TEST_BINARY_V1) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH)
+	#$(TEST_BINARY_V1) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH) -database-dsn=$(DB_DSN)
 	chmod +x $(TEST_BINARY_V2)
-	$(TEST_BINARY_V2) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH)
+	$(TEST_BINARY_V2) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH) -database-dsn=$(DB_DSN)
 	#chmod +x $(TEST_BINARY_BETA)
-	#$(TEST_BINARY_BETA) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH)
+	#$(TEST_BINARY_BETA) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH) -database-dsn=$(DB_DSN)
 	go test $(CPATH)/...
 
 run:

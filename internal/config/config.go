@@ -13,6 +13,7 @@ type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"` // envDefault:"localhost:8080"`
 	BaseURL       string `env:"BASE_URL"`       // envDefault:"http://localhost:8080"`
 	FileStorage   string `env:"FILE_STORAGE_PATH"`
+	DBDSN         string `env:"DATABASE_DSN"`
 }
 
 func NewConfig() (Config, error) {
@@ -28,6 +29,7 @@ func NewConfig() (Config, error) {
 	flag.StringVar(&configFlags.ServerAddress, "a", defaultAddress, "Server address")
 	flag.StringVar(&configFlags.BaseURL, "b", "http://"+defaultAddress, "Base URL")
 	flag.StringVar(&configFlags.FileStorage, "f", "data/db.json", "File Storage")
+	flag.StringVar(&config.DBDSN, "d", config.DBDSN, "DB DSN")
 	flag.Parse()
 
 	if config.ServerAddress == "" {
@@ -38,6 +40,9 @@ func NewConfig() (Config, error) {
 	}
 	if config.FileStorage == "" {
 		config.FileStorage = configFlags.FileStorage
+	}
+	if config.DBDSN == "" {
+		config.DBDSN = configFlags.DBDSN
 	}
 
 	if _, err := url.ParseRequestURI(config.BaseURL); err != nil {
