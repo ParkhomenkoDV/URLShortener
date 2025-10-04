@@ -10,7 +10,7 @@ TEST_BINARY_BETA := $(CPATH)/shortenertestbeta-darwin-arm64
 
 SERVER_PORT := 8080
 
-DB_DSN = pgsql:host=192.168.1.5;port=5432;dbname=test_db
+DB_DSN = pgsql:host=127.0.0.1;port=54181;dbname=test_db
 
 .PHONY: vendor path test run build
 

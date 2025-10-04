@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -97,4 +98,19 @@ func (h *Handler) processURL(rawURL string) (string, error) {
 	h.db.Set(shortKey, normalizationURL(rawURL))
 
 	return shortURL, nil
+}
+
+// Ping PostgreSQL
+func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("pgx", h.config.DBDSN)
+	if err != nil {
+		http.Error(w, "DB connection failed", http.StatusInternalServerError)
+		return
+	}
+	err = db.Ping()
+	if err != nil {
+		http.Error(w, "DB connection failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

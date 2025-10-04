@@ -65,7 +65,7 @@ func (s *Server) shutdown() error {
 	return s.saveData()
 }
 
-// Сохраняет данные в файл
+// saveData - сохраняет данные в файл.
 func (s *Server) saveData() error {
 	log.Println("Saving data")
 	if err := s.db.SaveToFile(s.config.FileStorage); err != nil {

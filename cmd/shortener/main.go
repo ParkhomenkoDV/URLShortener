@@ -37,6 +37,7 @@ func main() {
 	r.Post("/", hand.Post)
 	r.Post("/api/shorten", hand.PostJSON)
 	r.Get("/{id}", hand.Get)
+	r.Get("/ping", hand.Ping)
 
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
