@@ -28,7 +28,7 @@ func main() {
 		panic(err)
 	}
 	// выводим код ответа
-	fmt.Println("Статус-код ", response.Status)
+	fmt.Println("response.Status: ", response.Status)
 	defer response.Body.Close()
 	// читаем поток из тела ответа
 	body, err := io.ReadAll(response.Body)
