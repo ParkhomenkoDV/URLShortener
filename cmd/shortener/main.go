@@ -2,51 +2,40 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/ParkhomenkoDV/URLShortener/internal/config"
 	"github.com/ParkhomenkoDV/URLShortener/internal/handler"
-	"github.com/ParkhomenkoDV/URLShortener/internal/logger"
 	"github.com/ParkhomenkoDV/URLShortener/internal/middleware"
+	"github.com/ParkhomenkoDV/URLShortener/internal/repository"
 	"github.com/ParkhomenkoDV/URLShortener/internal/server"
-	"github.com/ParkhomenkoDV/URLShortener/internal/storage"
-	"github.com/go-chi/chi/v5"
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/ParkhomenkoDV/URLShortener/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	cfg, err := config.NewConfig()
-	if err != nil {
-		log.Fatalf("config error: %v", err)
-	}
+	// Инициализация конфигурации
+	configuration := config.New()
 
-	logger.New()
+	// Инициализация логгера
+	middleware.InitLogger()
 
-	db := storage.New()
-	db.LoadFromFile(cfg.FileStorage)
+	// Инициализация роутера
+	ginEngine := gin.Default()
 
-	hand := handler.New(&cfg, db)
+	// Создание репозитория в зависимости от конфигурации
+	repo := repository.CreateRepository(configuration.AddressDB, configuration.FilePath)
 
-	r := chi.NewRouter()
-	r.Use(middleware.GzipRequestMiddleware)
-	r.Use(middleware.GzipResponseMiddleware)
-	r.Use(chiMiddleware.Logger)
-	r.Use(chiMiddleware.Recoverer)
-	r.Use(logger.LoggingMiddleware)
+	// Создание сервиса
+	srvc := service.New(repo, configuration)
 
-	r.Post("/", hand.Post)
-	r.Post("/api/shorten", hand.PostJSON)
-	r.Get("/{id}", hand.Get)
-	r.Get("/ping", hand.Ping)
+	// Создание обработчика
+	handler.New(ginEngine, srvc, configuration)
 
-	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	})
-
-	srv := server.New(&cfg, r, db)
+	// Создание и запуск сервера с graceful shutdown
+	srv := server.New(configuration.Port, ginEngine, srvc)
 	if err := srv.Start(); err != nil {
-		log.Fatalf("server error: %v", err)
+		log.Fatalf("Server terminated with error: %v", err)
 	}
 
-	log.Println("Server ended")
+	log.Println("Server is offline")
 }
