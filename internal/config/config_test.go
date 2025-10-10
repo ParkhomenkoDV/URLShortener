@@ -9,15 +9,15 @@ import (
 
 func TestGenerateConfig(t *testing.T) {
 	// Сохраняем оригинальные переменные окружения
-	originalServerAddr := os.Getenv("SERVER_ADDRESS")
+	originalServerAddress := os.Getenv("SERVER_ADDRESS")
 	originalBaseURL := os.Getenv("BASE_URL")
-	originalFilePath := os.Getenv("FILE_STORAGE_PATH")
+	originalFileStoragePath := os.Getenv("FILE_STORAGE_PATH")
 	originalDatabaseDSN := os.Getenv("DATABASE_DSN")
 
 	// Восстанавливаем после теста
 	defer func() {
-		if originalServerAddr != "" {
-			os.Setenv("SERVER_ADDRESS", originalServerAddr)
+		if originalServerAddress != "" {
+			os.Setenv("SERVER_ADDRESS", originalServerAddress)
 		} else {
 			os.Unsetenv("SERVER_ADDRESS")
 		}
@@ -26,8 +26,8 @@ func TestGenerateConfig(t *testing.T) {
 		} else {
 			os.Unsetenv("BASE_URL")
 		}
-		if originalFilePath != "" {
-			os.Setenv("FILE_STORAGE_PATH", originalFilePath)
+		if originalFileStoragePath != "" {
+			os.Setenv("FILE_STORAGE_PATH", originalFileStoragePath)
 		} else {
 			os.Unsetenv("FILE_STORAGE_PATH")
 		}
