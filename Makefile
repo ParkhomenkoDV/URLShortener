@@ -27,11 +27,11 @@ build:
 case ?= 11
 
 test: build
+	go test $(CPATH)/...
 	chmod +x $(TEST_BINARY_V2)
 	$(TEST_BINARY_V2) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH) -database-dsn=$(DB_DSN)
 	#chmod +x $(TEST_BINARY_BETA)
 	#$(TEST_BINARY_BETA) -test.v -test.run=^TestIteration$(case)$$ -binary-path=$(CPATH)/cmd/shortener/shortener -server-port=$(SERVER_PORT) -file-storage-path=$(STORAGE_PATH) -source-path=$(CPATH) -database-dsn=$(DB_DSN)
-	go test $(CPATH)/...
 
 run:
 	go run $(CPATH)/cmd/shortener/main.go
