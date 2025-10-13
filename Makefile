@@ -24,7 +24,7 @@ build:
 	go build -o $(BINARY_NAME) $(CPATH)/cmd/shortener/*.go
 	mv $(BINARY_NAME) $(CPATH)/cmd/shortener/$(BINARY_NAME)
 
-case ?= 11
+case ?= 12
 
 test: build
 	go test $(CPATH)/...
