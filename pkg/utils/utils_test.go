@@ -12,13 +12,13 @@ func TestGenerateShortKey(t *testing.T) {
 	key2 := GenerateShortKey(length)
 
 	if len(key1) != length {
-		t.Fatalf("ожидалась длина %v, получено %d: %s", length, len(key1), key1)
+		t.Fatalf("len(%s)=%d, want: %d", key1, length, len(key1))
 	}
 
 	// Ключ содержит только разрешённые символы
 	validChars := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 	if !validChars.MatchString(key1) {
-		t.Errorf("ключ содержит недопустимые символы: %s", key1)
+		t.Errorf("key contains prohibited symbols: %s", key1)
 	}
 
 	// coalises

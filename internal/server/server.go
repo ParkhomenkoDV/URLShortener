@@ -12,24 +12,24 @@ import (
 	"github.com/ParkhomenkoDV/URLShortener/internal/service"
 )
 
-// Представляет HTTP сервер с graceful shutdown
+// HTTP сервер с graceful shutdown
 type Server struct {
 	httpServer *http.Server
 	service    *service.Service
 }
 
-// Создаёт новый сервер
-func New(addr string, handler http.Handler, service *service.Service) *Server {
+// Конструктор сервера
+func New(address string, handler http.Handler, service *service.Service) *Server {
 	return &Server{
 		httpServer: &http.Server{
-			Addr:    addr,
+			Addr:    address,
 			Handler: handler,
 		},
 		service: service,
 	}
 }
 
-// Запускает сервер с graceful shutdown
+// Запускает сервер
 func (s *Server) Start() error {
 	// Канал для получения сигналов завершения
 	quit := make(chan os.Signal, 1)
@@ -37,15 +37,16 @@ func (s *Server) Start() error {
 
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("Сервер запущен на %s", s.httpServer.Addr)
+		log.Printf("Server started at %s", s.httpServer.Addr)
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Ошибка запуска сервера: %v", err)
+			log.Fatalf("Server startup error: %v", err)
 		}
 	}()
 
 	// Ожидаем сигнал завершения
 	<-quit
-	log.Println("Завершение работы сервера...")
+
+	log.Println("Shutting down the server")
 
 	return s.shutdown()
 }
@@ -58,7 +59,7 @@ func (s *Server) shutdown() error {
 
 	// Завершаем HTTP сервер
 	if err := s.httpServer.Shutdown(ctx); err != nil {
-		log.Printf("Ошибка при завершении сервера: %v", err)
+		log.Printf("Server termination error: %v", err)
 		return err
 	}
 
@@ -68,12 +69,12 @@ func (s *Server) shutdown() error {
 
 // Закрывает соединение с репозиторием
 func (s *Server) closeRepository() error {
-	log.Println("Закрытие соединения с репозиторием...")
+	log.Println("Closing the connection to the repository")
 	if err := s.service.Close(); err != nil {
-		log.Printf("Ошибка при закрытии репозитория: %v", err)
+		log.Printf("Closing repository error: %v", err)
 		return err
 	}
 
-	log.Println("Соединение с репозиторием успешно закрыто")
+	log.Println("Repository connection closed.")
 	return nil
 }

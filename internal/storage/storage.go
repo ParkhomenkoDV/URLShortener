@@ -11,8 +11,8 @@ type DB struct {
 	persistence persistence.JSONPersistence
 }
 
-// Создание БД
-func CreateDB() *DB {
+// Конструктор БД
+func New() *DB {
 	return &DB{
 		data:        make(map[string]string),
 		counter:     0,

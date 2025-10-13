@@ -5,13 +5,13 @@ type Config struct {
 	Protocol     string
 	Port         string
 	ShortAddress string
-	FilePath     string
-	AddressDB    string
+	FilePath     string `doc:"Путь к локальной директории БД"`
+	AddressDB    string `doc:"Адрес БД"`
 }
 
 // Инициализация конфигурации
 func New() *Config {
-	// Получение данных из флагов
+	// Парсинг флагов
 	reqAddress, resAddress, filePath, adressDB := parseFlags()
 
 	return &Config{

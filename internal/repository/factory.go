@@ -30,7 +30,7 @@ func CreateRepository(databaseDSN, filePath string) URLRepository {
 
 	// Иначе используем память
 	log.Println("Используем репозиторий в памяти")
-	return NewMemoryRepository()
+	return New()
 }
 
 // isDefaultPostgresValue проверяет, является ли значение DSN дефолтным значением из флагов

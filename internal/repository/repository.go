@@ -8,7 +8,7 @@ type URLRepository interface {
 	GetShortValue(shortURL string) (string, error)
 	// SetValue сохраняет пару короткий URL - оригинальный URL
 	SetValue(shortURL, originalURL string) error
-	// SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
+	// SetValuesBatch сохраняет хэш-таблицу короткий URL - оригинальный URL
 	SetValuesBatch(pairs map[string]string) error
 	// Close закрывает соединение с хранилищем
 	Close() error

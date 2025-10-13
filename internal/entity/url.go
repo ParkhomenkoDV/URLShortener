@@ -1,13 +1,12 @@
 package entity
 
-// URL представляет доменную модель URL
 type URL struct {
 	ID          int
 	ShortURL    string
 	OriginalURL string
 }
 
-// NewURL создаёт новую доменную сущность URL
+// NewURL создаёт новый объект URL
 func NewURL(id int, shortURL, originalURL string) *URL {
 	return &URL{
 		ID:          id,
@@ -26,7 +25,7 @@ func (u *URL) GetOriginalURL() string {
 	return u.OriginalURL
 }
 
-// GetID возвращает идентификатор
+// GetID возвращает ID
 func (u *URL) GetID() int {
 	return u.ID
 }

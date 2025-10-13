@@ -11,8 +11,8 @@ type MemoryRepository struct {
 	mu   sync.RWMutex
 }
 
-// NewMemoryRepository создает новый репозиторий для работы с памятью
-func NewMemoryRepository() URLRepository {
+// New создает новый репозиторий для работы с памятью
+func New() URLRepository {
 	return &MemoryRepository{
 		data: make(map[string]string),
 	}

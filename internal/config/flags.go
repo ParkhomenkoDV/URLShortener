@@ -9,17 +9,14 @@ import (
 
 // parseFlags обрабатывает аргументы командной строки
 func parseFlags() (string, string, string, string) {
-	// адрес запуска HTTP-сервера значением localhost:8080 по умолчанию
+	// адрес работы HTTP-сервера (localhost:8080 по умолчанию)
 	portFlag := flag.String("a", "localhost:8080", "address and port to run server")
-
 	// базовый адрес результирующего сокращённого URL значением
 	resAddressFlag := flag.String("b", "http://localhost:8080", "address and port for short url")
-
-	// путь к файлу с урлами, значение data/urls.json по умолчанию
+	// путь к локальному файлу БД, значение data/urls.json по умолчанию
 	filePathFlag := flag.String("f", "data/urls.json", "path to the file for storing data")
-
-	// адрес для базы данных
-	addressFlagDB := flag.String("d", "", "database address")
+	// адрес для БД
+	addressDBFlag := flag.String("d", "", "database address")
 
 	flag.Parse()
 
@@ -45,12 +42,14 @@ func parseFlags() (string, string, string, string) {
 	filePath := *filePathFlag
 
 	// Адрес для базы данных
-	addressDB := *addressFlagDB
+	addressDB := *addressDBFlag
 
-	// Приоритет параметров согласно заданию:
-	// 1. Переменная окружения (наивысший приоритет)
-	// 2. Флаг командной строки
-	// 3. Значение по умолчанию (уже установлено)
+	/*
+		Приоритет параметров:
+		1. Переменная окружения
+		2. Флаг командной строки
+		3. Дефолтное значение
+	*/
 
 	// Если параметры заданы через переменные окружения, используем их
 	if envServerAddr := os.Getenv("SERVER_ADDRESS"); envServerAddr != "" {
@@ -62,15 +61,12 @@ func parseFlags() (string, string, string, string) {
 			port = envServerAddr
 		}
 	}
-
 	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
 		resAddress = envBaseURL
 	}
-
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		filePath = envFilePath
 	}
-
 	if envAddressDB := os.Getenv("DATABASE_DSN"); envAddressDB != "" {
 		addressDB = envAddressDB
 	}

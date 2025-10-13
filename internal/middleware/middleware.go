@@ -53,7 +53,7 @@ func GzipMiddleware() gin.HandlerFunc {
 			c.Request.Body = io.NopCloser(bytes.NewReader(body))
 			c.Request.ContentLength = int64(len(body))
 			c.Request.Header.Del("Content-Encoding")
-			
+
 			// Восстанавливаем правильный Content-Type для разных случаев
 			contentType := c.GetHeader("Content-Type")
 			if contentType == "application/x-gzip" {
