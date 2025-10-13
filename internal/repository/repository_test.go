@@ -8,7 +8,7 @@ import (
 
 func TestMemoryRepository(t *testing.T) {
 	// Инициализация репозитория в памяти
-	repo := New()
+	repo := NewMemory()
 	defer repo.Close()
 
 	t.Run("Set and Get value successfully", func(t *testing.T) {

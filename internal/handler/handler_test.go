@@ -19,7 +19,7 @@ import (
 
 // Сет-ап для тестов
 func setupTest() (*gin.Engine, *Handler) {
-	repo := repository.New()
+	repo := repository.NewMemory()
 	configuration := &config.Config{
 		Port:         ":8080",
 		ShortAddress: "http://localhost:8080",

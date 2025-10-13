@@ -8,15 +8,14 @@ import (
 // ErrRowExists ошибка, которая возникает, когда запись уже существует
 var ErrRowExists = errors.New("short URL already exists")
 
-// CreateRepository создает репозиторий в зависимости от конфигурации
-// Приоритет: PostgreSQL -> File -> Memory
+// CreateRepository создает репозиторий в зависимости от конфигурации по приоритету: PostgreSQL -> File -> Memory
 func CreateRepository(databaseDSN, filePath string) URLRepository {
 	// Если есть DATABASE_DSN и он не пустой, используем PostgreSQL
-	if databaseDSN != "" && !isDefaultPostgresValue(databaseDSN) {
-		log.Printf("Используем PostgreSQL репозиторий с DSN: %s", databaseDSN)
+	if databaseDSN != "" {
+		log.Printf("Use PostgreSQL with DSN: %s", databaseDSN)
 		repo, err := NewPostgreSQLRepository(databaseDSN)
 		if err != nil {
-			log.Printf("Ошибка создания PostgreSQL репозитория: %v. Переходим к файловому хранилищу", err)
+			log.Printf("Create PostgreSQL error: %v", err)
 		} else {
 			return repo
 		}
@@ -24,17 +23,11 @@ func CreateRepository(databaseDSN, filePath string) URLRepository {
 
 	// Если есть FILE_STORAGE_PATH и он не пустой, используем файловое хранилище
 	if filePath != "" {
-		log.Printf("Используем файловый репозиторий с путем: %s", filePath)
-		return NewFileRepository(filePath)
+		log.Printf("Use File with path: %s", filePath)
+		return NewFile(filePath)
 	}
 
 	// Иначе используем память
-	log.Println("Используем репозиторий в памяти")
-	return New()
-}
-
-// isDefaultPostgresValue проверяет, является ли значение DSN дефолтным значением из флагов
-func isDefaultPostgresValue(dsn string) bool {
-	defaultDSN := ""
-	return dsn == defaultDSN
+	log.Println("Use Memory")
+	return NewMemory()
 }

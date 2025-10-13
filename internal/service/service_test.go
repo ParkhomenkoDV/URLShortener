@@ -10,7 +10,7 @@ import (
 
 func TestURLShortnerService(t *testing.T) {
 	// Инициализируем репозиторий в памяти для тестов
-	repo := repository.New()
+	repo := repository.NewMemory()
 	configuration := config.Config{}
 	service := New(repo, &configuration)
 	defer service.Close()

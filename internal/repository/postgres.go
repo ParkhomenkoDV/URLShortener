@@ -20,7 +20,7 @@ type PostgreSQLRepository struct {
 
 // NewPostgreSQLRepository создает новый репозиторий для работы с PostgreSQL
 func NewPostgreSQLRepository(dsn string) (URLRepository, error) {
-	// Подключаемся к базе данных
+	// Подключаемся к БД
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
@@ -170,7 +170,7 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string) error {
 	return nil
 }
 
-// Close закрывает соединение с базой данных
+// Close закрывает соединение с БД
 func (r *PostgreSQLRepository) Close() error {
 	r.pool.Close()
 	return nil
