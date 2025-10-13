@@ -9,70 +9,71 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ParkhomenkoDV/URLShortener/internal/config"
-	"github.com/ParkhomenkoDV/URLShortener/internal/storage"
+	"github.com/ParkhomenkoDV/URLShortener/internal/service"
 )
 
+// Представляет HTTP сервер с graceful shutdown
 type Server struct {
-	config     *config.Config
 	httpServer *http.Server
-	db         *storage.DB
+	service    *service.Service
 }
 
-// New - создание нового сервера.
-func New(config *config.Config, handler http.Handler, db *storage.DB) *Server {
+// Создаёт новый сервер
+func New(addr string, handler http.Handler, service *service.Service) *Server {
 	return &Server{
-		config: config,
 		httpServer: &http.Server{
-			Addr:    config.ServerAddress,
+			Addr:    addr,
 			Handler: handler,
 		},
-		db: db,
+		service: service,
 	}
 }
 
-// Start - запуск сервера.
+// Запускает сервер с graceful shutdown
 func (s *Server) Start() error {
+	// Канал для получения сигналов завершения
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("Server started at %s \n", s.httpServer.Addr)
+		log.Printf("Сервер запущен на %s", s.httpServer.Addr)
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("error starting server: %v", err)
+			log.Fatalf("Ошибка запуска сервера: %v", err)
 		}
 	}()
 
-	<-quit // Ожидаем сигнал завершения
-	log.Println("Server ended")
+	// Ожидаем сигнал завершения
+	<-quit
+	log.Println("Завершение работы сервера...")
 
 	return s.shutdown()
 }
 
-// shutdown - graceful shutdown.
+// graceful shutdown
 func (s *Server) shutdown() error {
-	// Создание контекста с таймаутом для shutdown
+	// Создаём контекст с таймаутом для shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Завершение работы HTTP сервера
+	// Завершаем HTTP сервер
 	if err := s.httpServer.Shutdown(ctx); err != nil {
-		log.Printf("error starting server: %v", err)
+		log.Printf("Ошибка при завершении сервера: %v", err)
 		return err
 	}
 
-	// Сохраняем данные перед завершением
-	return s.saveData()
+	// Закрываем соединение с репозиторием
+	return s.closeRepository()
 }
 
-// Сохраняет данные в файл
-func (s *Server) saveData() error {
-	log.Println("Saving data")
-	if err := s.db.SaveToFile(s.config.FileStorage); err != nil {
-		log.Printf("saving data error: %v", err)
+// Закрывает соединение с репозиторием
+func (s *Server) closeRepository() error {
+	log.Println("Закрытие соединения с репозиторием...")
+	if err := s.service.Close(); err != nil {
+		log.Printf("Ошибка при закрытии репозитория: %v", err)
 		return err
 	}
 
-	log.Println("Data saved successfully")
+	log.Println("Соединение с репозиторием успешно закрыто")
 	return nil
 }

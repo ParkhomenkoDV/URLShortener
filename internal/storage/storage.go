@@ -1,135 +1,79 @@
 package storage
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sync"
+	"github.com/ParkhomenkoDV/URLShortener/internal/persistence"
 )
 
-var mutex sync.Mutex
-
+// Структура для БД
 type DB struct {
-	data  map[string]string
-	count int
+	data        map[string]string
+	userMap     map[string]string // shortURL -> userID
+	counter     int
+	persistence persistence.JSONPersistence
 }
 
-// New - создание нового объекта БД.
-func New() *DB {
+// Создание БД
+func CreateDB() *DB {
 	return &DB{
-		data:  make(map[string]string),
-		count: 0,
+		data:        make(map[string]string),
+		userMap:     make(map[string]string),
+		counter:     0,
+		persistence: persistence.NewFileJSONPersistence(),
 	}
 }
 
-// Get - получение значения по ключу.
+// Получение значения по ключу
 func (db *DB) Get(key string) (string, bool) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	value, exists := db.data[key]
 	return value, exists
 }
 
-// Set - установка значения по ключу.
+// Установка значения с user_id
 func (db *DB) Set(key, value string) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	db.SetWithUser(key, value, "")
+}
 
-	_, exists := db.data[key]
+// Установка значения с указанием пользователя
+func (db *DB) SetWithUser(key, value, userID string) {
 	db.data[key] = value
-	if !exists {
-		db.count++
-	}
+	db.userMap[key] = userID
+	db.counter++
 }
 
-func (db *DB) Delete(key string) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	_, exists := db.data[key]
-	if !exists {
-		return fmt.Errorf("key not found")
-	}
-	delete(db.data, key)
-	db.count--
-	return nil
-}
-
-func (db *DB) Count() int {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	return db.count
-}
-
-// record - запись об URLs.
-type record struct {
-	ID          int
-	ShortURL    string
-	OriginalURL string
-}
-
-// SaveToFile - сохранение данных в JSON файл.
+// Сохраняет данные в файл в формате JSON
 func (db *DB) SaveToFile(filePath string) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	var records []record
-
-	counter := 0
-	for shortURL, originalURL := range db.data {
-		counter++
-		record := record{counter, shortURL, originalURL}
-		records = append(records, record)
-	}
-
-	data, err := json.MarshalIndent(records, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	// Создаем директорию, если её нет
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	return os.WriteFile(filePath, data, 0644)
+	return db.persistence.Save(filePath, db.data)
 }
 
-// LoadFromFile - загрузка данных из JSON файла.
+// Загружает данные из файла в формате JSON
 func (db *DB) LoadFromFile(filePath string) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) { // файла не существует
-		return err
-	}
-
-	bytes, err := os.ReadFile(filePath) // ошибка чтения файла
+	data, maxCounter, err := db.persistence.Load(filePath)
 	if err != nil {
 		return err
-	}
-
-	if len(bytes) == 0 { // пустой файл
-		return fmt.Errorf("empty file")
-	}
-
-	var records []record
-
-	if err := json.Unmarshal(bytes, &records); err != nil { // ошибка десериализации JSON
-		return err
-	}
-
-	data := make(map[string]string)
-	for _, record := range records {
-		data[record.ShortURL] = record.OriginalURL
 	}
 
 	db.data = data
-	db.count = len(data)
+	db.counter = maxCounter
 
 	return nil
+}
+
+// GetUserURLs возвращает все URL конкретного пользователя
+func (db *DB) GetUserURLs(userID string) []map[string]string {
+	var urls []map[string]string
+	for shortURL, originalURL := range db.data {
+		if db.userMap[shortURL] == userID {
+			urls = append(urls, map[string]string{
+				"short_url":    shortURL,
+				"original_url": originalURL,
+			})
+		}
+	}
+	return urls
+}
+
+// GetUserID возвращает ID пользователя по короткому URL
+func (db *DB) GetUserID(shortURL string) (string, bool) {
+	userID, exists := db.userMap[shortURL]
+	return userID, exists
 }

@@ -8,62 +8,114 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestGzipMiddleware(t *testing.T) {
-	t.Run("gzip response compression", func(t *testing.T) {
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("test response content"))
-		})
+func TestGzipMiddleware_Compression(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 
-		req := httptest.NewRequest("GET", "/", nil)
-		req.Header.Set("Accept-Encoding", "gzip")
+	// Инициализируем логгер для тестов
+	InitLogger()
 
-		rec := httptest.NewRecorder()
-		middleware := GzipResponseMiddleware(handler)
-		middleware.ServeHTTP(rec, req)
+	router := gin.New()
+	router.Use(GzipMiddleware())
 
-		require.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))
-		require.Equal(t, http.StatusOK, rec.Code)
+	// Тестовый эндпоинт
+	router.GET("/test", func(c *gin.Context) {
+		c.Header("Content-Type", "application/json")
+		c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
 	})
 
-	t.Run("gzip request decompression", func(t *testing.T) {
-		// Create gzipped content
-		var buf bytes.Buffer
-		gz := gzip.NewWriter(&buf)
-		gz.Write([]byte("compressed content"))
-		gz.Close()
+	// Создаем запрос с поддержкой gzip
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
 
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			body, _ := io.ReadAll(r.Body)
-			require.Equal(t, "compressed content", string(body))
-			w.Write([]byte("ok"))
-		})
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-		req := httptest.NewRequest("POST", "/", &buf)
-		req.Header.Set("Content-Encoding", "gzip")
+	// Проверяем заголовки
+	assert.Equal(t, "gzip", w.Header().Get("Content-Encoding"))
+	assert.Equal(t, "Accept-Encoding", w.Header().Get("Vary"))
 
-		rec := httptest.NewRecorder()
-		middleware := GzipRequestMiddleware(handler)
-		middleware.ServeHTTP(rec, req)
+	// Проверяем, что ответ сжат
+	reader, err := gzip.NewReader(w.Body)
+	assert.NoError(t, err)
+	defer reader.Close()
 
-		require.Equal(t, http.StatusOK, rec.Code)
+	decompressed, err := io.ReadAll(reader)
+	assert.NoError(t, err)
+
+	expectedJSON := `{"message":"Hello, World!"}`
+	assert.JSONEq(t, expectedJSON, string(decompressed))
+}
+
+func TestGzipMiddleware_Decompression(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(GzipMiddleware())
+
+	// Тестовый эндпоинт для POST
+	router.POST("/test", func(c *gin.Context) {
+		body, _ := io.ReadAll(c.Request.Body)
+		c.String(http.StatusOK, string(body))
 	})
 
-	t.Run("no compression when not accepted", func(t *testing.T) {
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("test response"))
-		})
+	// Создаем сжатое тело запроса
+	testData := "Hello, World!"
+	var buf bytes.Buffer
+	writer := gzip.NewWriter(&buf)
+	writer.Write([]byte(testData))
+	writer.Close()
 
-		req := httptest.NewRequest("GET", "/", nil)
-		// No Accept-Encoding header
+	// Создаем запрос со сжатым телом
+	req := httptest.NewRequest("POST", "/test", &buf)
+	req.Header.Set("Content-Encoding", "gzip")
 
-		rec := httptest.NewRecorder()
-		middleware := GzipResponseMiddleware(handler)
-		middleware.ServeHTTP(rec, req)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-		require.Empty(t, rec.Header().Get("Content-Encoding"))
-		require.Equal(t, "test response", rec.Body.String())
+	// Проверяем, что тело было правильно распаковано
+	assert.Equal(t, testData, w.Body.String())
+}
+
+func TestGzipMiddleware_NoGzipSupport(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(GzipMiddleware())
+
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "Hello, World!")
 	})
+
+	// Создаем запрос без поддержки gzip
+	req := httptest.NewRequest("GET", "/test", nil)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Проверяем, что gzip не используется
+	assert.Empty(t, w.Header().Get("Content-Encoding"))
+	assert.Equal(t, "Hello, World!", w.Body.String())
+}
+
+func TestLoggingMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(LoggingMiddleware())
+
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "OK", w.Body.String())
 }

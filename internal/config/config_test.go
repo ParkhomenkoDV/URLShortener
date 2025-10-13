@@ -1,44 +1,95 @@
 package config
 
 import (
-	"flag"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestConfig(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
-		cfg, err := NewConfig()
-		require.NoError(t, err)
-		require.Equal(t, "localhost:8080", cfg.ServerAddress)
-		require.Equal(t, "http://localhost:8080", cfg.BaseURL)
-		require.Equal(t, "data/db.json", cfg.FileStorage)
-	})
+func TestGenerateConfig(t *testing.T) {
+	// Сохраняем оригинальные переменные окружения
+	originalServerAddress := os.Getenv("SERVER_ADDRESS")
+	originalBaseURL := os.Getenv("BASE_URL")
+	originalFileStoragePath := os.Getenv("FILE_STORAGE_PATH")
+	originalDatabaseDSN := os.Getenv("DATABASE_DSN")
 
-	t.Run("invalid base URL panics", func(t *testing.T) {
-		flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
-		flag.String("b", "invalid-url", "")
-		require.Panics(t, func() { NewConfig() })
-	})
-
-	t.Run("environment variables", func(t *testing.T) {
-		os.Setenv("SERVER_ADDRESS", "127.0.0.1:9090")
-		os.Setenv("BASE_URL", "https://example.com")
-		os.Setenv("FILE_STORAGE_PATH", "/tmp/db.json")
-		defer func() {
+	// Восстанавливаем после теста
+	defer func() {
+		if originalServerAddress != "" {
+			os.Setenv("SERVER_ADDRESS", originalServerAddress)
+		} else {
 			os.Unsetenv("SERVER_ADDRESS")
+		}
+		if originalBaseURL != "" {
+			os.Setenv("BASE_URL", originalBaseURL)
+		} else {
 			os.Unsetenv("BASE_URL")
+		}
+		if originalFileStoragePath != "" {
+			os.Setenv("FILE_STORAGE_PATH", originalFileStoragePath)
+		} else {
 			os.Unsetenv("FILE_STORAGE_PATH")
-		}()
+		}
+		if originalDatabaseDSN != "" {
+			os.Setenv("DATABASE_DSN", originalDatabaseDSN)
+		} else {
+			os.Unsetenv("DATABASE_DSN")
+		}
+	}()
 
-		flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
-		cfg, err := NewConfig()
-		require.NoError(t, err)
-		require.Equal(t, "127.0.0.1:9090", cfg.ServerAddress)
-		require.Equal(t, "https://example.com", cfg.BaseURL)
-		require.Equal(t, "/tmp/db.json", cfg.FileStorage)
+	t.Run("Default config generation", func(t *testing.T) {
+		// Очищаем переменные окружения для чистого теста
+		os.Unsetenv("SERVER_ADDRESS")
+		os.Unsetenv("BASE_URL")
+		os.Unsetenv("FILE_STORAGE_PATH")
+		os.Unsetenv("DATABASE_DSN")
+
+		config := New()
+
+		assert.NotNil(t, config)
+		assert.Equal(t, "http://", config.Protocol)
+		assert.Contains(t, config.Port, ":")               // Порт должен содержать двоеточие
+		assert.Contains(t, config.ShortAddress, "http://") // Адрес должен содержать протокол
+		assert.NotEmpty(t, config.FilePath)                // Путь к файлу не должен быть пустым
+		assert.Equal(t, "your-secret-key-change-in-production", config.AuthSecretKey)
+	})
+
+	t.Run("Config with environment variables", func(t *testing.T) {
+		// Устанавливаем переменные окружения
+		os.Setenv("SERVER_ADDRESS", "localhost:9090")
+		os.Setenv("BASE_URL", "https://example.com")
+		os.Setenv("FILE_STORAGE_PATH", "/tmp/test.json")
+		os.Setenv("DATABASE_DSN", "postgres://user:pass@localhost/db")
+
+		config := New()
+
+		assert.NotNil(t, config)
+		assert.Equal(t, "http://", config.Protocol)
+		assert.Equal(t, ":9090", config.Port)
+		assert.Equal(t, "https://example.com", config.ShortAddress)
+		assert.Equal(t, "/tmp/test.json", config.FilePath)
+		assert.Equal(t, "postgres://user:pass@localhost/db", config.AddressDB)
+		assert.Equal(t, "your-secret-key-change-in-production", config.AuthSecretKey)
+	})
+}
+
+func TestConfig(t *testing.T) {
+	t.Run("ConfigStruct creation", func(t *testing.T) {
+		config := &Config{
+			Protocol:      "https://",
+			Port:          ":3000",
+			ShortAddress:  "https://short.ly",
+			FilePath:      "/path/to/file.json",
+			AddressDB:     "postgres://localhost/test",
+			AuthSecretKey: "test-secret",
+		}
+
+		assert.Equal(t, "https://", config.Protocol)
+		assert.Equal(t, ":3000", config.Port)
+		assert.Equal(t, "https://short.ly", config.ShortAddress)
+		assert.Equal(t, "/path/to/file.json", config.FilePath)
+		assert.Equal(t, "postgres://localhost/test", config.AddressDB)
+		assert.Equal(t, "test-secret", config.AuthSecretKey)
 	})
 }
