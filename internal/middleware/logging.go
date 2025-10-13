@@ -4,12 +4,14 @@ import (
 	"go.uber.org/zap"
 )
 
-var Sugar zap.SugaredLogger // Singleton для логгера
+// Singleton для логгера
+var Sugar zap.SugaredLogger
 
 // Инициализатор для логгера
 func InitLogger() {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
+		// вызываем панику, если ошибка
 		panic(err)
 	}
 	defer logger.Sync()

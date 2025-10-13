@@ -9,25 +9,19 @@ import (
 
 // parseFlags обрабатывает аргументы командной строки
 func parseFlags() (string, string, string, string) {
-	// Создаем новый FlagSet для избежания конфликтов в тестах
-	fs := flag.NewFlagSet("config", flag.ContinueOnError)
-
 	// адрес запуска HTTP-сервера значением localhost:8080 по умолчанию
-	portFlag := fs.String("a", "localhost:8080", "address and port to run server")
+	portFlag := flag.String("a", "localhost:8080", "address and port to run server")
 
 	// базовый адрес результирующего сокращённого URL значением
-	resAddressFlag := fs.String("b", "http://localhost:8080", "address and port for short url")
+	resAddressFlag := flag.String("b", "http://localhost:8080", "address and port for short url")
 
 	// путь к файлу с урлами, значение data/urls.json по умолчанию
-	filePathFlag := fs.String("f", "data/urls.json", "path to the file for storing data")
+	filePathFlag := flag.String("f", "data/urls.json", "path to the file for storing data")
 
 	// адрес для базы данных
-	addressFlagDB := fs.String("d", "", "database address")
+	addressFlagDB := flag.String("d", "", "database address")
 
-	// В тестах os.Args может быть пустым или содержать аргументы теста
-	if len(os.Args) > 1 {
-		fs.Parse(os.Args[1:])
-	}
+	flag.Parse()
 
 	// Проверка и обработка адреса сервера
 	portParts := strings.Split(*portFlag, ":")
