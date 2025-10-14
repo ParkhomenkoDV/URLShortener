@@ -10,7 +10,7 @@ var ErrRowExists = errors.New("short URL already exists")
 
 // CreateRepository создает репозиторий в зависимости от конфигурации по приоритету: PostgreSQL -> File -> Memory
 func CreateRepository(databaseDSN, filePath string) URLRepository {
-	// Если есть DATABASE_DSN и он не пустой, используем PostgreSQL
+	// Если есть непустой DATABASE_DSN, используем PostgreSQL
 	if databaseDSN != "" {
 		log.Printf("Use PostgreSQL with DSN: %s", databaseDSN)
 		repo, err := NewPostgreSQLRepository(databaseDSN)
@@ -21,7 +21,7 @@ func CreateRepository(databaseDSN, filePath string) URLRepository {
 		}
 	}
 
-	// Если есть FILE_STORAGE_PATH и он не пустой, используем файловое хранилище
+	// Если есть непустой FILE_STORAGE_PATH, используем файловое хранилище
 	if filePath != "" {
 		log.Printf("Use File with path: %s", filePath)
 		return NewFile(filePath)

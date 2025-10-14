@@ -68,7 +68,7 @@ func (r *PostgreSQLRepository) runMigrations(dsn string) error {
 }
 
 // GetValue получает оригинальный URL по короткому
-func (r *PostgreSQLRepository) GetFullValue(shortURL string) (string, error) {
+func (r *PostgreSQLRepository) GetLongValue(shortURL string) (string, error) {
 	var originalURL string
 	err := r.pool.QueryRow(context.Background(),
 		"SELECT original_url FROM urls WHERE short_url = $1", shortURL).Scan(&originalURL)

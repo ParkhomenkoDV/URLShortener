@@ -19,7 +19,7 @@ func NewMemory() URLRepository {
 }
 
 // GetValue получает оригинальный URL по короткому
-func (mr *MemoryRepository) GetFullValue(shortURL string) (string, error) {
+func (mr *MemoryRepository) GetLongValue(shortURL string) (string, error) {
 	mr.mu.RLock()
 	defer mr.mu.RUnlock()
 

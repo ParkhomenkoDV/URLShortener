@@ -31,7 +31,7 @@ func (s *Service) CreateShortURL(url string) (string, error) {
 	// Генерируем сокращенную уникальную ссылку
 	for {
 		shortURL = utils.GenerateShortKey(6)
-		if _, err := s.Repository.GetFullValue(shortURL); err == nil {
+		if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 			continue
 		}
 		break
@@ -66,7 +66,7 @@ func (s *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 		// Генерируем уникальную короткую ссылку
 		for {
 			shortURL = utils.GenerateShortKey(6)
-			if _, err := s.Repository.GetFullValue(shortURL); err == nil {
+			if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 				continue
 			}
 			// Проверяем на коализии, по хорошему надо бы сделать рекурсию
@@ -91,7 +91,7 @@ func (s *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 // Получение полного URL
 func (s *Service) GetFullURL(shortURL string) (string, error) {
 	// Ищем полный URL в репозитории, или выдаем ошибку
-	if url, err := s.Repository.GetFullValue(shortURL); err == nil {
+	if url, err := s.Repository.GetLongValue(shortURL); err == nil {
 		return url, nil
 	} else {
 		return "", errors.New("not found")

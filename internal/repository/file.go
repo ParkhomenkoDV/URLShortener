@@ -39,8 +39,8 @@ func NewFile(filePath string) URLRepository {
 	return repo
 }
 
-// GetFullValue получает оригинальный URL по короткому
-func (r *FileRepository) GetFullValue(shortURL string) (string, error) {
+// GetLongValue получает оригинальный URL по короткому
+func (r *FileRepository) GetLongValue(shortURL string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

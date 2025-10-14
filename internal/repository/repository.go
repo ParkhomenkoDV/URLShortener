@@ -2,8 +2,8 @@ package repository
 
 // URLRepository интерфейс для работы с URL
 type URLRepository interface {
-	// GetFullValue получает оригинальный URL по короткому
-	GetFullValue(shortURL string) (string, error)
+	// GetLongValue получает оригинальный URL по короткому
+	GetLongValue(shortURL string) (string, error)
 	// GetShortValue получает короткий URL по оригинальному
 	GetShortValue(shortURL string) (string, error)
 	// SetValue сохраняет пару короткий URL - оригинальный URL
