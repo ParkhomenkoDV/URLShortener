@@ -10,7 +10,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// Структура для сервиса сокращения ссылок
+// Сервис сокращения ссылок
 type Service struct {
 	Repository    repository.URLRepository
 	Configuration *config.Config
@@ -25,24 +25,23 @@ func New(repo repository.URLRepository, configuration *config.Config) *Service {
 }
 
 // Создание сокращенного URL
-func (u *Service) CreateShortURL(url string) (string, error) {
-	// Инициализация результата
+func (s *Service) CreateShortURL(url string) (string, error) {
 	var shortURL string
 
 	// Генерируем сокращенную уникальную ссылку
 	for {
 		shortURL = utils.GenerateShortKey(6)
-		if _, err := u.Repository.GetFullValue(shortURL); err == nil {
+		if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 			continue
 		}
 		break
 	}
 
 	// Сохраняем в репозитории
-	if err := u.Repository.SetValue(shortURL, url); err != nil {
+	if err := s.Repository.SetValue(shortURL, url); err != nil {
 		if errors.Is(err, repository.ErrRowExists) {
 			// Если ссылка уже существует
-			if shortURL, err = u.Repository.GetShortValue(url); err == nil {
+			if shortURL, err = s.Repository.GetShortValue(url); err == nil {
 				return shortURL, repository.ErrRowExists
 			}
 		}
@@ -52,14 +51,13 @@ func (u *Service) CreateShortURL(url string) (string, error) {
 	return shortURL, nil
 }
 
-// CreateShortURLsBatch создает сокращенные URL для пакета URL
-func (u *Service) CreateShortURLsBatch(urls []string) (map[string]string, error) {
+// CreateShortURLsBatch создает сокращенные URL
+func (s *Service) CreateShortURLsBatch(urls []string) (map[string]string, error) {
 	if len(urls) == 0 {
 		return make(map[string]string), nil
 	}
 
-	result := make(map[string]string)
-	pairs := make(map[string]string)
+	result, pairs := make(map[string]string), make(map[string]string)
 
 	// Генерируем короткие URL для каждого исходного URL
 	for _, originalURL := range urls {
@@ -68,10 +66,10 @@ func (u *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 		// Генерируем уникальную короткую ссылку
 		for {
 			shortURL = utils.GenerateShortKey(6)
-			if _, err := u.Repository.GetFullValue(shortURL); err == nil {
+			if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 				continue
 			}
-			// Проверяем также, что этот ключ не используется в текущем пакете
+			// Проверяем на коализии, по хорошему надо бы сделать рекурсию
 			if _, exists := pairs[shortURL]; exists {
 				continue
 			}
@@ -83,7 +81,7 @@ func (u *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 	}
 
 	// Сохраняем пакет в репозитории
-	if err := u.Repository.SetValuesBatch(pairs); err != nil {
+	if err := s.Repository.SetValuesBatch(pairs); err != nil {
 		return nil, err
 	}
 
@@ -91,9 +89,9 @@ func (u *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 }
 
 // Получение полного URL
-func (u *Service) GetFullURL(shortURL string) (string, error) {
+func (s *Service) GetFullURL(shortURL string) (string, error) {
 	// Ищем полный URL в репозитории, или выдаем ошибку
-	if url, err := u.Repository.GetFullValue(shortURL); err == nil {
+	if url, err := s.Repository.GetLongValue(shortURL); err == nil {
 		return url, nil
 	} else {
 		return "", errors.New("not found")
@@ -101,8 +99,8 @@ func (u *Service) GetFullURL(shortURL string) (string, error) {
 }
 
 // Ping DB
-func (u *Service) PingPostgreSQL() error {
-	db, err := sql.Open("pgx", u.Configuration.AddressDB)
+func (s *Service) PingPostgreSQL() error {
+	db, err := sql.Open("pgx", s.Configuration.AddressDB)
 	if err != nil {
 		return err
 	}
@@ -111,6 +109,6 @@ func (u *Service) PingPostgreSQL() error {
 }
 
 // Close закрывает соединение с репозиторием
-func (u *Service) Close() error {
-	return u.Repository.Close()
+func (s *Service) Close() error {
+	return s.Repository.Close()
 }

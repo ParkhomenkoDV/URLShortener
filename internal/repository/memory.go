@@ -11,30 +11,30 @@ type MemoryRepository struct {
 	mu   sync.RWMutex
 }
 
-// NewMemoryRepository создает новый репозиторий для работы с памятью
-func NewMemoryRepository() URLRepository {
+// NewMemory создает новый репозиторий для работы с памятью
+func NewMemory() URLRepository {
 	return &MemoryRepository{
 		data: make(map[string]string),
 	}
 }
 
 // GetValue получает оригинальный URL по короткому
-func (r *MemoryRepository) GetFullValue(shortURL string) (string, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (mr *MemoryRepository) GetLongValue(shortURL string) (string, error) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
 
-	if value, ok := r.data[shortURL]; ok {
+	if value, ok := mr.data[shortURL]; ok {
 		return value, nil
 	}
 	return "", errors.New("not found key in database")
 }
 
 // GetShortValue получает короткий URL по оригинальному
-func (r *MemoryRepository) GetShortValue(originalURL string) (string, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (mr *MemoryRepository) GetShortValue(originalURL string) (string, error) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
 
-	for short, long := range r.data {
+	for short, long := range mr.data {
 		if long == originalURL {
 			return short, nil
 		}
@@ -43,31 +43,31 @@ func (r *MemoryRepository) GetShortValue(originalURL string) (string, error) {
 }
 
 // SetValue сохраняет пару короткий URL - оригинальный URL
-func (r *MemoryRepository) SetValue(shortURL, originalURL string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, ok := r.data[shortURL]; ok {
+func (mr *MemoryRepository) SetValue(shortURL, originalURL string) error {
+	mr.mu.Lock()
+	defer mr.mu.Unlock()
+	if _, ok := mr.data[shortURL]; ok {
 		return ErrRowExists
 	}
-	r.data[shortURL] = originalURL
+	mr.data[shortURL] = originalURL
 	return nil
 }
 
 // SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
-func (r *MemoryRepository) SetValuesBatch(pairs map[string]string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string) error {
+	mr.mu.Lock()
+	defer mr.mu.Unlock()
 
 	for key, value := range pairs {
-		if _, ok := r.data[key]; ok {
+		if _, ok := mr.data[key]; ok {
 			return ErrRowExists
 		}
-		r.data[key] = value
+		mr.data[key] = value
 	}
 	return nil
 }
 
 // Close закрывает соединение с хранилищем (для памяти это заглушка)
-func (r *MemoryRepository) Close() error {
+func (mr *MemoryRepository) Close() error {
 	return nil
 }

@@ -16,8 +16,8 @@ type FileRepository struct {
 	persistence  persistence.JSONPersistence
 }
 
-// NewFileRepository создает новый репозиторий для работы с файлом
-func NewFileRepository(filePath string) URLRepository {
+// NewFile создает новый репозиторий для работы с файлом
+func NewFile(filePath string) URLRepository {
 	repo := &FileRepository{
 		data:         make(map[string]string),
 		reversedData: make(map[string]string),
@@ -31,7 +31,7 @@ func NewFileRepository(filePath string) URLRepository {
 		repo.data = data
 	}
 
-	// Формирование обратной мапы
+	// Формирование обратной мапы TODO: вынести в pkg/functions
 	for originalURL, shortURL := range data {
 		repo.reversedData[originalURL] = shortURL
 	}
@@ -39,8 +39,8 @@ func NewFileRepository(filePath string) URLRepository {
 	return repo
 }
 
-// GetFullValue получает оригинальный URL по короткому
-func (r *FileRepository) GetFullValue(shortURL string) (string, error) {
+// GetLongValue получает оригинальный URL по короткому
+func (r *FileRepository) GetLongValue(shortURL string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

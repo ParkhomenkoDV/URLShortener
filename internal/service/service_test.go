@@ -10,7 +10,7 @@ import (
 
 func TestURLShortnerService(t *testing.T) {
 	// Инициализируем репозиторий в памяти для тестов
-	repo := repository.NewMemoryRepository()
+	repo := repository.NewMemory()
 	configuration := config.Config{}
 	service := New(repo, &configuration)
 	defer service.Close()
@@ -52,10 +52,12 @@ func TestURLShortnerService(t *testing.T) {
 		assert.NotEqual(t, short1, short2)
 
 		// Проверяем, что они ведут на разные URL
-		full1, _ := service.GetFullURL(short1)
-		full2, _ := service.GetFullURL(short2)
+		full1, err1 := service.GetFullURL(short1)
+		full2, err2 := service.GetFullURL(short2)
 
+		assert.NoError(t, err1)
 		assert.Equal(t, url1, full1)
+		assert.NoError(t, err2)
 		assert.Equal(t, url2, full2)
 	})
 
