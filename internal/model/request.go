@@ -15,6 +15,7 @@ type URLRecord struct {
 	ID          int    `json:"id"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	UserID      string `json:"user_id"`
 }
 
 // Model for batch request
@@ -27,4 +28,10 @@ type BatchRequest struct {
 type BatchResponse struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
+}
+
+// UserURL представляет URL пользователя в ответе
+type UserURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }

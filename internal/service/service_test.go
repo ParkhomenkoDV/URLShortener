@@ -19,7 +19,7 @@ func TestURLShortnerService(t *testing.T) {
 		originalURL := "https://example.com/very/long/url"
 
 		// Создаем короткую ссылку
-		shortURL, err := service.CreateShortURL(originalURL)
+		shortURL, err := service.CreateShortURL(originalURL, "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, shortURL)
 		assert.Len(t, shortURL, 6)
@@ -44,8 +44,8 @@ func TestURLShortnerService(t *testing.T) {
 		url2 := "https://second.com"
 
 		// Генерируем две короткие ссылки
-		short1, err1 := service.CreateShortURL(url1)
-		short2, err2 := service.CreateShortURL(url2)
+		short1, err1 := service.CreateShortURL(url1, "")
+		short2, err2 := service.CreateShortURL(url2, "")
 
 		assert.NoError(t, err1)
 		assert.NoError(t, err2)
@@ -65,7 +65,7 @@ func TestURLShortnerService(t *testing.T) {
 		emptyURL := ""
 
 		// Не должно паниковать при пустом URL
-		shortURL, err := service.CreateShortURL(emptyURL)
+		shortURL, err := service.CreateShortURL(emptyURL, "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, shortURL)
 

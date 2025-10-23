@@ -100,7 +100,7 @@ func (r *PostgreSQLRepository) GetShortValue(originalURL string) (string, error)
 }
 
 // SetValue сохраняет пару короткий URL - оригинальный URL
-func (r *PostgreSQLRepository) SetValue(shortURL, originalURL string) error {
+func (r *PostgreSQLRepository) SetValue(shortURL, originalURL, userID string) error {
 	tx, err := r.pool.Begin(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
@@ -109,11 +109,11 @@ func (r *PostgreSQLRepository) SetValue(shortURL, originalURL string) error {
 
 	var result string
 	err = tx.QueryRow(context.Background(),
-		`INSERT INTO urls (short_url, original_url)
-		 VALUES ($1, $2)
+		`INSERT INTO urls (short_url, original_url, user_id)
+		 VALUES ($1, $2, $3)
 		 ON CONFLICT (original_url) DO NOTHING
 		 RETURNING short_url`,
-		shortURL, originalURL).Scan(&result)
+		shortURL, originalURL, userID).Scan(&result)
 
 	// Запись уже существует
 	if errors.Is(err, sql.ErrNoRows) {
@@ -131,7 +131,7 @@ func (r *PostgreSQLRepository) SetValue(shortURL, originalURL string) error {
 }
 
 // SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
-func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string) error {
+func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID string) error {
 	if len(pairs) == 0 {
 		return nil
 	}
@@ -154,9 +154,9 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string) error {
 
 		// Вставляем или обновляем по original_url
 		_, err = tx.Exec(context.Background(),
-			`INSERT INTO urls (short_url, original_url) 
-			 VALUES ($1, $2)`,
-			shortURL, originalURL)
+			`INSERT INTO urls (short_url, original_url, user_id) 
+			 VALUES ($1, $2, $3)`,
+			shortURL, originalURL, userID)
 		if err != nil {
 			return fmt.Errorf("failed to upsert url: %v", err)
 		}
@@ -168,6 +168,35 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string) error {
 	}
 
 	return nil
+}
+
+// GetUserURLs получает все URL пользователя
+func (r *PostgreSQLRepository) GetUserURLs(userID string) ([]map[string]string, error) {
+	rows, err := r.pool.Query(context.Background(),
+		"SELECT short_url, original_url FROM urls WHERE user_id = $1", userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user urls: %v", err)
+	}
+	defer rows.Close()
+
+	var urls []map[string]string
+	for rows.Next() {
+		var shortURL, originalURL string
+		if err := rows.Scan(&shortURL, &originalURL); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+
+		urls = append(urls, map[string]string{
+			"short_url":    shortURL,
+			"original_url": originalURL,
+		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate rows: %v", err)
+	}
+
+	return urls, nil
 }
 
 // Close закрывает соединение с БД

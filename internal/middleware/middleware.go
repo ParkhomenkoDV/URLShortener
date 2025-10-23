@@ -11,6 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// UserIDKey является ключом для хранения ID пользователя в контексте
+const UserIDKey = "userID"
+
 // Middleware для логирования запросов
 func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -87,6 +90,57 @@ func GzipMiddleware() gin.HandlerFunc {
 			ResponseWriter: c.Writer,
 			writer:         gz,
 		}
+
+		c.Next()
+	}
+}
+
+// AuthMiddleware middleware для аутентификации пользователей
+// Интерфейс для сервиса аутентификации
+type AuthServiceInterface interface {
+	GetOrCreateUserID(r *http.Request) (string, *http.Cookie)
+	ValidateCookie(cookieValue string) (string, bool)
+}
+
+func AuthMiddleware(authService AuthServiceInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, cookie := authService.GetOrCreateUserID(c.Request)
+
+		// Сохраняем userID в контексте для использования в хендлерах
+		c.Set(UserIDKey, userID)
+
+		// Если была создана новая кука, устанавливаем её
+		if cookie != nil {
+			http.SetCookie(c.Writer, cookie)
+		}
+
+		c.Next()
+	}
+}
+
+// RequireAuthMiddleware middleware, который требует валидную существующую куку
+func RequireAuthMiddleware(authService AuthServiceInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Проверяем наличие куки в запросе
+		cookie, err := c.Request.Cookie("user_id")
+		if err != nil {
+			// Кука отсутствует
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		// Проверяем валидность куки
+		userID, valid := authService.ValidateCookie(cookie.Value)
+		if !valid || userID == "" {
+			// Кука невалидна
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		// Сохраняем userID в контексте для использования в хендлерах
+		c.Set(UserIDKey, userID)
 
 		c.Next()
 	}

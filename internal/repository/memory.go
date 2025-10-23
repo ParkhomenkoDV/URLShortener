@@ -7,14 +7,16 @@ import (
 
 // MemoryRepository реализация репозитория для хранения в памяти
 type MemoryRepository struct {
-	data map[string]string
-	mu   sync.RWMutex
+	data    map[string]string
+	userMap map[string]string // map[short] = long
+	mu      sync.RWMutex
 }
 
 // NewMemory создает новый репозиторий для работы с памятью
 func NewMemory() URLRepository {
 	return &MemoryRepository{
-		data: make(map[string]string),
+		data:    make(map[string]string),
+		userMap: make(map[string]string),
 	}
 }
 
@@ -43,18 +45,19 @@ func (mr *MemoryRepository) GetShortValue(originalURL string) (string, error) {
 }
 
 // SetValue сохраняет пару короткий URL - оригинальный URL
-func (mr *MemoryRepository) SetValue(shortURL, originalURL string) error {
+func (mr *MemoryRepository) SetValue(shortURL, originalURL, userID string) error {
 	mr.mu.Lock()
 	defer mr.mu.Unlock()
 	if _, ok := mr.data[shortURL]; ok {
 		return ErrRowExists
 	}
 	mr.data[shortURL] = originalURL
+	mr.userMap[shortURL] = userID
 	return nil
 }
 
 // SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
-func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string) error {
+func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string, userID string) error {
 	mr.mu.Lock()
 	defer mr.mu.Unlock()
 
@@ -63,6 +66,7 @@ func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string) error {
 			return ErrRowExists
 		}
 		mr.data[key] = value
+		mr.userMap[key] = userID
 	}
 	return nil
 }
@@ -70,4 +74,21 @@ func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string) error {
 // Close закрывает соединение с хранилищем (для памяти это заглушка)
 func (mr *MemoryRepository) Close() error {
 	return nil
+}
+
+// GetUserURLs получает все URL пользователя
+func (r *MemoryRepository) GetUserURLs(userID string) ([]map[string]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var urls []map[string]string
+	for shortURL, originalURL := range r.data {
+		if userID == r.userMap[shortURL] {
+			urls = append(urls, map[string]string{
+				"short_url":    shortURL,
+				"original_url": originalURL,
+			})
+		}
+	}
+	return urls, nil
 }
