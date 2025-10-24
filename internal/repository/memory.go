@@ -77,13 +77,13 @@ func (mr *MemoryRepository) Close() error {
 }
 
 // GetUserURLs получает все URL пользователя
-func (r *MemoryRepository) GetUserURLs(userID string) ([]map[string]string, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (mr *MemoryRepository) GetUserURLs(userID string) ([]map[string]string, error) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
 
 	var urls []map[string]string
-	for shortURL, originalURL := range r.data {
-		if userID == r.userMap[shortURL] {
+	for shortURL, originalURL := range mr.data {
+		if userID == mr.userMap[shortURL] {
 			urls = append(urls, map[string]string{
 				"short_url":    shortURL,
 				"original_url": originalURL,

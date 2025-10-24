@@ -34,7 +34,7 @@ func NewFile(filePath string) URLRepository {
 		repo.userMap = userMap
 	}
 
-	// Формирование обратной мапы TODO: вынести в pkg/functions
+	// Формирование обратной мапы
 	for originalURL, shortURL := range data {
 		repo.reversedData[originalURL] = shortURL
 	}
