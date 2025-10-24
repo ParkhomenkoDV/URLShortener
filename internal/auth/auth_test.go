@@ -25,18 +25,19 @@ func TestAuthService(t *testing.T) {
 		cookie := authService.CreateSignedCookie(userID)
 		if cookie == nil {
 			t.Error("Cookie should not be nil")
-		}
-		if cookie.Name != "user_id" {
-			t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
-		}
-		if cookie.HttpOnly != true {
-			t.Error("HttpOnly should be true")
-		}
-		if cookie.SameSite != http.SameSiteLaxMode {
-			t.Error("SameSite should be Lax")
-		}
-		if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
-			t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
+		} else { // possible nil pointer dereference
+			if cookie.Name != "user_id" {
+				t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
+			}
+			if cookie.HttpOnly != true {
+				t.Error("HttpOnly should be true")
+			}
+			if cookie.SameSite != http.SameSiteLaxMode {
+				t.Error("SameSite should be Lax")
+			}
+			if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
+				t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
+			}
 		}
 	})
 
@@ -139,32 +140,34 @@ func TestCookieFormat(t *testing.T) {
 		// Проверяем структуру куки
 		if cookie == nil {
 			t.Error("Cookie should not be nil")
-		}
-		if cookie.Name != "user_id" {
-			t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
-		}
-		if cookie.HttpOnly != true {
-			t.Error("HttpOnly should be true")
-		}
-		if cookie.SameSite != http.SameSiteLaxMode {
-			t.Error("SameSite should be Lax")
-		}
-		if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
-			t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
+		} else { // internal/auth/auth_test.go:29:13: possible nil pointer dereference
+			if cookie.Name != "user_id" {
+				t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
+			}
+			if cookie.HttpOnly != true {
+				t.Error("HttpOnly should be true")
+			}
+			if cookie.SameSite != http.SameSiteLaxMode {
+				t.Error("SameSite should be Lax")
+			}
+			if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
+				t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
+			}
+
+			// Проверяем значение куки
+			parts := strings.Split(cookie.Value, ":")
+			if len(parts) != 2 {
+				t.Errorf("Cookie value should have 2 parts separated by ':', got %d parts", len(parts))
+			}
+			if parts[0] != userID {
+				t.Errorf("First part should be user ID %s, got %s", userID, parts[0])
+			}
+			expectedSignature := authService.SignValue(userID)
+			if parts[1] != expectedSignature {
+				t.Errorf("Second part should be signature %s, got %s", expectedSignature, parts[1])
+			}
 		}
 
-		// Проверяем значение куки
-		parts := strings.Split(cookie.Value, ":")
-		if len(parts) != 2 {
-			t.Errorf("Cookie value should have 2 parts separated by ':', got %d parts", len(parts))
-		}
-		if parts[0] != userID {
-			t.Errorf("First part should be user ID %s, got %s", userID, parts[0])
-		}
-		expectedSignature := authService.SignValue(userID)
-		if parts[1] != expectedSignature {
-			t.Errorf("Second part should be signature %s, got %s", expectedSignature, parts[1])
-		}
 	})
 
 	// Тест 2: Проверка создания куки с пустым userID
