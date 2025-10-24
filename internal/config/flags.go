@@ -7,8 +7,17 @@ import (
 	"strings"
 )
 
-// parseFlags обрабатывает аргументы командной строки
-func parseFlags() (string, string, string, string) {
+// ConfigFlags структура для хранения всех конфигурационных параметров
+type ConfigFlags struct {
+	Port       string
+	ResAddress string
+	FilePath   string
+	AddressDB  string
+}
+
+// parseFlags обрабатывает аргументы командной строки и возвращает структуру с конфигурацией
+func parseFlags() ConfigFlags {
+	var cfg ConfigFlags
 	// Создаем новый FlagSet для избежания конфликтов в тестах
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 	// адрес работы HTTP-сервера (localhost:8080 по умолчанию)
@@ -32,8 +41,7 @@ func parseFlags() (string, string, string, string) {
 		flag.Usage()
 		os.Exit(2)
 	}
-
-	port := ":" + portParts[1]
+	cfg.Port = ":" + portParts[1]
 
 	// Проверка базового адреса
 	resAddress := *resAddressFlag
@@ -42,39 +50,38 @@ func parseFlags() (string, string, string, string) {
 		flag.Usage()
 		os.Exit(2)
 	}
+	cfg.ResAddress = resAddress
 
 	// Путь до файла с urls
-	filePath := *filePathFlag
+	cfg.FilePath = *filePathFlag
 
 	// Адрес для базы данных
-	addressDB := *addressDBFlag
+	cfg.AddressDB = *addressDBFlag
 
-	/*
-		Приоритет параметров:
-		1. Переменная окружения
-		2. Флаг командной строки
-		3. Дефолтное значение
-	*/
+	// Приоритет параметров:
+	// 1. Переменная окружения
+	// 2. Флаг командной строки
+	// 3. Дефолтное значение
 
 	// Если параметры заданы через переменные окружения, используем их
 	if envServerAddr := os.Getenv("SERVER_ADDRESS"); envServerAddr != "" {
 		// Обрабатываем переменную окружения SERVER_ADDRESS
 		envPortParts := strings.Split(envServerAddr, ":")
 		if len(envPortParts) >= 2 {
-			port = ":" + envPortParts[1]
+			cfg.Port = ":" + envPortParts[1]
 		} else {
-			port = envServerAddr
+			cfg.Port = envServerAddr
 		}
 	}
 	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
-		resAddress = envBaseURL
+		cfg.ResAddress = envBaseURL
 	}
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
-		filePath = envFilePath
+		cfg.FilePath = envFilePath
 	}
 	if envAddressDB := os.Getenv("DATABASE_DSN"); envAddressDB != "" {
-		addressDB = envAddressDB
+		cfg.AddressDB = envAddressDB
 	}
 
-	return port, resAddress, filePath, addressDB
+	return cfg
 }

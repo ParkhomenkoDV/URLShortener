@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,8 +17,8 @@ type AuthService struct {
 	secretKey []byte
 }
 
-// NewAuthService создает новый экземпляр AuthService
-func NewAuthService(secretKey string) *AuthService {
+// New создает новый экземпляр AuthService
+func New(secretKey string) *AuthService {
 	return &AuthService{
 		secretKey: []byte(secretKey),
 	}
@@ -30,6 +31,9 @@ func (a *AuthService) GenerateUserID() string {
 
 // SignValue создает подпись для значения
 func (a *AuthService) SignValue(value string) string {
+	if value == "" {
+		return ""
+	}
 	h := hmac.New(sha256.New, a.secretKey)
 	h.Write([]byte(value))
 	return hex.EncodeToString(h.Sum(nil))
@@ -37,6 +41,9 @@ func (a *AuthService) SignValue(value string) string {
 
 // CreateSignedCookie создает подписанную куку с ID пользователя
 func (a *AuthService) CreateSignedCookie(userID string) *http.Cookie {
+	if userID == "" {
+		return nil
+	}
 	signature := a.SignValue(userID)
 	cookieValue := fmt.Sprintf("%s:%s", userID, signature)
 
@@ -45,7 +52,7 @@ func (a *AuthService) CreateSignedCookie(userID string) *http.Cookie {
 		Value:    cookieValue,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   false, // установить в true для production
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(30 * 24 * time.Hour.Seconds()),
 	}
@@ -58,22 +65,7 @@ func (a *AuthService) ValidateCookie(cookieValue string) (string, bool) {
 	}
 
 	// Разделяем значение куки на userID и подпись
-	parts := []string{}
-	colonIndex := -1
-	for i := len(cookieValue) - 1; i >= 0; i-- {
-		if cookieValue[i] == ':' {
-			colonIndex = i
-			break
-		}
-	}
-
-	if colonIndex == -1 {
-		return "", false
-	}
-
-	parts = append(parts, cookieValue[:colonIndex])
-	parts = append(parts, cookieValue[colonIndex+1:])
-
+	parts := strings.Split(cookieValue, ":")
 	if len(parts) != 2 {
 		return "", false
 	}
@@ -83,11 +75,8 @@ func (a *AuthService) ValidateCookie(cookieValue string) (string, bool) {
 
 	// Проверяем подпись
 	expectedSignature := a.SignValue(userID)
-	if !hmac.Equal([]byte(providedSignature), []byte(expectedSignature)) {
-		return "", false
-	}
 
-	return userID, true
+	return userID, hmac.Equal([]byte(providedSignature), []byte(expectedSignature))
 }
 
 // GetOrCreateUserID извлекает ID пользователя из куки или создает нового пользователя

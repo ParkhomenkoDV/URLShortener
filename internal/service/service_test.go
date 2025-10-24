@@ -11,8 +11,8 @@ import (
 func TestURLShortnerService(t *testing.T) {
 	// Инициализируем репозиторий в памяти для тестов
 	repo := repository.NewMemory()
-	configuration := config.Config{}
-	service := New(repo, &configuration)
+	configuration := config.New()
+	service := New(repo, configuration)
 	defer service.Close()
 
 	t.Run("Create and get short URL", func(t *testing.T) {
@@ -22,7 +22,7 @@ func TestURLShortnerService(t *testing.T) {
 		shortURL, err := service.CreateShortURL(originalURL, "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, shortURL)
-		assert.Len(t, shortURL, 6)
+		assert.Len(t, shortURL, configuration.LengthKey)
 
 		// Получаем оригинальную ссылку
 		fullURL, err := service.GetFullURL(shortURL)

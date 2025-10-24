@@ -30,7 +30,7 @@ func New(
 	configuration *config.Config,
 ) {
 	// Создаем сервис аутентификации
-	authService := auth.NewAuthService(configuration.AuthSecretKey)
+	authService := auth.New(configuration.AuthSecretKey)
 	handler := &Handler{
 		Service:       service,
 		Configuration: configuration,

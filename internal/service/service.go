@@ -30,7 +30,7 @@ func (s *Service) CreateShortURL(url, userID string) (string, error) {
 
 	// Генерируем сокращенную уникальную ссылку
 	for {
-		shortURL = utils.GenerateShortKey(6)
+		shortURL = utils.GenerateShortKey(s.Configuration.LengthKey)
 		if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 			continue
 		}
@@ -65,7 +65,7 @@ func (s *Service) CreateShortURLsBatch(urls []string, userID string) (map[string
 
 		// Генерируем уникальную короткую ссылку
 		for {
-			shortURL = utils.GenerateShortKey(6)
+			shortURL = utils.GenerateShortKey(s.Configuration.LengthKey)
 			if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 				continue
 			}

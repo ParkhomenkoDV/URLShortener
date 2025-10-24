@@ -23,6 +23,7 @@ func setupTest() (*gin.Engine, *Handler) {
 	configuration := &config.Config{
 		Port:         ":8080",
 		ShortAddress: "http://localhost:8080",
+		LengthKey:    6,
 	}
 	service := service.New(repo, configuration)
 	ginEngine := gin.Default()
