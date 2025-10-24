@@ -128,12 +128,14 @@ func (h *Handler) SendJSONURL(c *gin.Context) {
 
 	// Получаем данные из body
 	var request model.Request
+
 	// Странный тест на обязательный юз encoding/json, чисто ради галочки...
-	// if err := c.ShouldBindJSON(&request); err != nil {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	// 	c.Abort()
-	// 	return
-	// }
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.Abort()
+		return
+	}
+
 	if err := json.NewDecoder(c.Request.Body).Decode(&request); err != nil {
 		h.handleGenericErrorJSON(c, http.StatusBadRequest, err.Error())
 		return
