@@ -14,9 +14,10 @@ func TestMemoryRepository(t *testing.T) {
 	t.Run("Set and Get value successfully", func(t *testing.T) {
 		key := "testKey"
 		value := "https://example.com"
+		userID := "user123"
 
 		// Записываем значение
-		err := repo.SetValue(key, value)
+		err := repo.SetValue(key, value, userID)
 		assert.NoError(t, err)
 
 		// Получаем значение и проверяем
@@ -39,18 +40,33 @@ func TestMemoryRepository(t *testing.T) {
 		key := "existingKey"
 		firstValue := "https://first.com"
 		secondValue := "https://second.com"
+		userID := "user456"
 
 		// Первая запись
-		err := repo.SetValue(key, firstValue)
+		err := repo.SetValue(key, firstValue, userID)
 		assert.NoError(t, err)
 		firstResult, err := repo.GetLongValue(key)
 		assert.NoError(t, err)
 		assert.Equal(t, firstValue, firstResult)
 
 		// Перезаписываем
-		err = repo.SetValue(key, secondValue)
+		err = repo.SetValue(key, secondValue, userID)
 		assert.Error(t, err)
 		_, err = repo.GetLongValue(key)
 		assert.NoError(t, err)
+	})
+
+	t.Run("Get user URLs", func(t *testing.T) {
+		userID := "user789"
+
+		// Создаем несколько URL для пользователя
+		_ = repo.SetValue("key1", "https://example1.com", userID)
+		_ = repo.SetValue("key2", "https://example2.com", userID)
+		_ = repo.SetValue("key3", "https://example3.com", "anotherUser")
+
+		// Получаем URL пользователя
+		userURLs, err := repo.GetUserURLs(userID)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(userURLs))
 	})
 }

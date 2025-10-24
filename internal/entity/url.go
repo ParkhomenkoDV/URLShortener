@@ -4,28 +4,35 @@ type URL struct {
 	ID          int
 	ShortURL    string
 	OriginalURL string
+	UserID      string
 }
 
 // NewURL создаёт новый объект URL
-func NewURL(id int, shortURL, originalURL string) *URL {
+func NewURL(id int, shortURL, originalURL, userID string) *URL {
 	return &URL{
 		ID:          id,
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
+		UserID:      userID,
 	}
 }
 
 // GetShortURL возвращает сокращённый URL
-func (u *URL) GetShortURL() string {
-	return u.ShortURL
+func (url *URL) GetShortURL() string {
+	return url.ShortURL
 }
 
 // GetOriginalURL возвращает оригинальный URL
-func (u *URL) GetOriginalURL() string {
-	return u.OriginalURL
+func (url *URL) GetOriginalURL() string {
+	return url.OriginalURL
 }
 
 // GetID возвращает ID
-func (u *URL) GetID() int {
-	return u.ID
+func (url *URL) GetID() int {
+	return url.ID
+}
+
+// GetUserID возвращает идентификатор пользователя
+func (url *URL) GetUserID() string {
+	return url.UserID
 }

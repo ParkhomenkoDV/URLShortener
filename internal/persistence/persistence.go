@@ -10,8 +10,8 @@ import (
 
 // Cериализация/десериализация данных в JSON
 type JSONPersistence interface {
-	Save(filePath string, data map[string]string) error
-	Load(filePath string) (map[string]string, int, error)
+	Save(filePath string, data map[string]string, userMap map[string]string) error
+	Load(filePath string) (map[string]string, map[string]string, int, error)
 }
 
 // Реализация для работы с JSON файлами
@@ -23,15 +23,17 @@ func NewFileJSONPersistence() *FileJSONPersistence {
 }
 
 // Сохраняет данные в JSON файл
-func (p *FileJSONPersistence) Save(filePath string, data map[string]string) error {
+func (p *FileJSONPersistence) Save(filePath string, data map[string]string, userMap map[string]string) error {
 	var records []model.URLRecord
 
 	counter := 1
 	for shortURL, originalURL := range data {
+		userID := userMap[shortURL]
 		record := model.URLRecord{
 			ID:          counter,
 			ShortURL:    shortURL,
 			OriginalURL: originalURL,
+			UserID:      userID,
 		}
 		records = append(records, record)
 		counter++
@@ -41,26 +43,33 @@ func (p *FileJSONPersistence) Save(filePath string, data map[string]string) erro
 }
 
 // Загружает данные из JSON файла
-func (p *FileJSONPersistence) Load(filePath string) (map[string]string, int, error) {
+func (p *FileJSONPersistence) Load(filePath string) (map[string]string, map[string]string, int, error) {
 	records, err := p.loadRecordsFromFile(filePath)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
 	data := make(map[string]string)
+	userMap := make(map[string]string)
 	maxID := 0
 	for _, record := range records {
 		data[record.ShortURL] = record.OriginalURL
+		userMap[record.ShortURL] = record.UserID
 		if record.ID > maxID {
 			maxID = record.ID
 		}
 	}
 
-	return data, maxID, nil
+	return data, userMap, maxID, nil
 }
 
 // Сохраняет записи в файл
 func (p *FileJSONPersistence) saveRecordsToFile(filePath string, records []model.URLRecord) error {
+	// Если records nil, инициализируем пустым slice
+	if records == nil {
+		records = []model.URLRecord{}
+	}
+
 	data, err := json.MarshalIndent(records, "", "  ")
 	if err != nil {
 		return err

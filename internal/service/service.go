@@ -25,12 +25,12 @@ func New(repo repository.URLRepository, configuration *config.Config) *Service {
 }
 
 // Создание сокращенного URL
-func (s *Service) CreateShortURL(url string) (string, error) {
+func (s *Service) CreateShortURL(url, userID string) (string, error) {
 	var shortURL string
 
 	// Генерируем сокращенную уникальную ссылку
 	for {
-		shortURL = utils.GenerateShortKey(6)
+		shortURL = utils.GenerateShortKey(s.Configuration.LengthKey)
 		if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 			continue
 		}
@@ -38,7 +38,7 @@ func (s *Service) CreateShortURL(url string) (string, error) {
 	}
 
 	// Сохраняем в репозитории
-	if err := s.Repository.SetValue(shortURL, url); err != nil {
+	if err := s.Repository.SetValue(shortURL, url, userID); err != nil {
 		if errors.Is(err, repository.ErrRowExists) {
 			// Если ссылка уже существует
 			if shortURL, err = s.Repository.GetShortValue(url); err == nil {
@@ -52,7 +52,7 @@ func (s *Service) CreateShortURL(url string) (string, error) {
 }
 
 // CreateShortURLsBatch создает сокращенные URL
-func (s *Service) CreateShortURLsBatch(urls []string) (map[string]string, error) {
+func (s *Service) CreateShortURLsBatch(urls []string, userID string) (map[string]string, error) {
 	if len(urls) == 0 {
 		return make(map[string]string), nil
 	}
@@ -65,7 +65,7 @@ func (s *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 
 		// Генерируем уникальную короткую ссылку
 		for {
-			shortURL = utils.GenerateShortKey(6)
+			shortURL = utils.GenerateShortKey(s.Configuration.LengthKey)
 			if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 				continue
 			}
@@ -81,7 +81,7 @@ func (s *Service) CreateShortURLsBatch(urls []string) (map[string]string, error)
 	}
 
 	// Сохраняем пакет в репозитории
-	if err := s.Repository.SetValuesBatch(pairs); err != nil {
+	if err := s.Repository.SetValuesBatch(pairs, userID); err != nil {
 		return nil, err
 	}
 
@@ -96,6 +96,11 @@ func (s *Service) GetFullURL(shortURL string) (string, error) {
 	} else {
 		return "", errors.New("not found")
 	}
+}
+
+// GetUserURLs получает все URL пользователя
+func (s *Service) GetUserURLs(userID string) ([]map[string]string, error) {
+	return s.Repository.GetUserURLs(userID)
 }
 
 // Ping DB

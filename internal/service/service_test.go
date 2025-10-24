@@ -11,18 +11,18 @@ import (
 func TestURLShortnerService(t *testing.T) {
 	// Инициализируем репозиторий в памяти для тестов
 	repo := repository.NewMemory()
-	configuration := config.Config{}
-	service := New(repo, &configuration)
+	configuration := config.New()
+	service := New(repo, configuration)
 	defer service.Close()
 
 	t.Run("Create and get short URL", func(t *testing.T) {
 		originalURL := "https://example.com/very/long/url"
 
 		// Создаем короткую ссылку
-		shortURL, err := service.CreateShortURL(originalURL)
+		shortURL, err := service.CreateShortURL(originalURL, "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, shortURL)
-		assert.Len(t, shortURL, 6)
+		assert.Len(t, shortURL, configuration.LengthKey)
 
 		// Получаем оригинальную ссылку
 		fullURL, err := service.GetFullURL(shortURL)
@@ -44,8 +44,8 @@ func TestURLShortnerService(t *testing.T) {
 		url2 := "https://second.com"
 
 		// Генерируем две короткие ссылки
-		short1, err1 := service.CreateShortURL(url1)
-		short2, err2 := service.CreateShortURL(url2)
+		short1, err1 := service.CreateShortURL(url1, "")
+		short2, err2 := service.CreateShortURL(url2, "")
 
 		assert.NoError(t, err1)
 		assert.NoError(t, err2)
@@ -65,7 +65,7 @@ func TestURLShortnerService(t *testing.T) {
 		emptyURL := ""
 
 		// Не должно паниковать при пустом URL
-		shortURL, err := service.CreateShortURL(emptyURL)
+		shortURL, err := service.CreateShortURL(emptyURL, "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, shortURL)
 

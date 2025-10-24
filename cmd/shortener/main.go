@@ -13,14 +13,14 @@ import (
 )
 
 func main() {
-	// Инициализация конфигурации
+	// Инициализация конфигурации со всеми необходимыми параметрами работы приложения
 	configuration := config.New()
 
 	// Инициализация логгера
 	middleware.InitLogger()
 
 	// Инициализация роутера
-	ginEngine := gin.Default()
+	ginEngine := gin.Default() // под капотом автоматически настраивает базовые middleware (recovery, logger, static files)
 
 	// Создание репозитория в зависимости от конфигурации
 	repo := repository.CreateRepository(configuration.AddressDB, configuration.FilePath)

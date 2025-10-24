@@ -23,6 +23,7 @@ func setupTest() (*gin.Engine, *Handler) {
 	configuration := &config.Config{
 		Port:         ":8080",
 		ShortAddress: "http://localhost:8080",
+		LengthKey:    6,
 	}
 	service := service.New(repo, configuration)
 	ginEngine := gin.Default()
@@ -93,7 +94,7 @@ func TestGetURLHandler(t *testing.T) {
 
 	// Предварительно создаем тестовую короткую ссылку
 	longURL := "https://redirect.me"
-	shortURL, err := h.Service.CreateShortURL(longURL)
+	shortURL, err := h.Service.CreateShortURL(longURL, "")
 	assert.NoError(t, err)
 
 	// Создаем клиент, который не следует за редиректами автоматически
@@ -329,7 +330,7 @@ func TestRedirectIntegration(t *testing.T) {
 	t.Run("redirect works correctly", func(t *testing.T) {
 		// Создаем ссылку напрямую через сервис
 		longURL := "https://redirect-test.com"
-		shortURL, err := h.Service.CreateShortURL(longURL)
+		shortURL, err := h.Service.CreateShortURL(longURL, "")
 		assert.NoError(t, err)
 
 		// Проверяем редирект
