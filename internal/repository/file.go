@@ -95,7 +95,7 @@ func (r *FileRepository) SetValuesBatch(pairs map[string]string, userID string) 
 	defer r.mu.Unlock()
 
 	// Проверяем все пары на конфликты перед сохранением
-	for key, _ := range pairs {
+	for key := range pairs {
 		if _, ok := r.data[key]; ok {
 			return ErrRowExists
 		}
