@@ -12,30 +12,31 @@ import (
 	"github.com/ParkhomenkoDV/URLShortener/internal/service"
 )
 
-// HTTP сервер с graceful shutdown
+// Server представляет HTTP сервер приложения с поддержкой graceful shutdown
 type Server struct {
-	httpServer *http.Server
-	service    *service.Service
+	httpServer *http.Server     // Встроенный HTTP сервер
+	service    *service.Service // Сервисный слой приложения
 }
 
-// Конструктор сервера
+// New создает новый экземпляр сервера с указанными параметрами
 func New(address string, handler http.Handler, service *service.Service) *Server {
 	return &Server{
 		httpServer: &http.Server{
-			Addr:    address,
-			Handler: handler,
+			Addr:    address, // Адрес для прослушивания (например: ":8080")
+			Handler: handler, // HTTP обработчик (роутер)
 		},
-		service: service,
+		service: service, // Сервис для бизнес-логики
 	}
 }
 
-// Запускает сервер
+// Start запускает HTTP сервер и обрабатывает graceful shutdown
+// Метод блокирует выполнение до получения сигнала завершения
 func (s *Server) Start() error {
-	// Канал для получения сигналов завершения
+	// Канал для получения сигналов ОС о завершении работы
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Запускаем сервер в отдельной горутине
+	// Запускаем HTTP сервер в отдельной горутине
 	go func() {
 		log.Printf("Server started at %s", s.httpServer.Addr)
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -43,31 +44,33 @@ func (s *Server) Start() error {
 		}
 	}()
 
-	// Ожидаем сигнал завершения
+	// Ожидаем сигнал завершения от ОС
 	<-quit
-
 	log.Println("Shutting down the server")
 
+	// Выполняем graceful shutdown
 	return s.shutdown()
 }
 
-// graceful shutdown
+// shutdown выполняет корректное завершение работы сервера
+// Закрывает HTTP соединения и освобождает ресурсы
 func (s *Server) shutdown() error {
-	// Создаём контекст с таймаутом для shutdown
+	// Создаём контекст с таймаутом для graceful shutdown
+	// Сервер имеет 30 секунд чтобы завершить активные соединения
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Завершаем HTTP сервер
+	// Останавливаем HTTP сервер, позволяя завершить активные запросы
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		log.Printf("Server termination error: %v", err)
 		return err
 	}
 
-	// Закрываем соединение с репозиторием
+	// Закрываем соединения с хранилищем данных
 	return s.closeRepository()
 }
 
-// Закрывает соединение с репозиторием
+// closeRepository освобождает ресурсы, связанные с хранилищем данных
 func (s *Server) closeRepository() error {
 	log.Println("Closing the connection to the repository")
 	if err := s.service.Close(); err != nil {
@@ -75,6 +78,6 @@ func (s *Server) closeRepository() error {
 		return err
 	}
 
-	log.Println("Repository connection closed.")
+	log.Println("Repository connection closed successfully")
 	return nil
 }

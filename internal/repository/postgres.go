@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -13,14 +14,14 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// PostgreSQLRepository реализация репозитория для работы с PostgreSQL
+// PostgreSQLRepository реализует хранение данных в PostgreSQL
 type PostgreSQLRepository struct {
-	pool *pgxpool.Pool
+	pool *pgxpool.Pool // Пул соединений с БД
 }
 
-// NewPostgreSQLRepository создает новый репозиторий для работы с PostgreSQL
+// NewPostgreSQLRepository создает новый PostgreSQL репозиторий и выполняет миграции
 func NewPostgreSQLRepository(dsn string) (URLRepository, error) {
-	// Подключаемся к БД
+	// Создаем пул соединений с базой данных
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
@@ -30,7 +31,7 @@ func NewPostgreSQLRepository(dsn string) (URLRepository, error) {
 		pool: pool,
 	}
 
-	// Выполняем миграции
+	// Выполняем миграции схемы базы данных
 	if err := repo.runMigrations(dsn); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("failed to run migrations: %v", err)
@@ -39,27 +40,30 @@ func NewPostgreSQLRepository(dsn string) (URLRepository, error) {
 	return repo, nil
 }
 
-// runMigrations выполняет миграции базы данных
+// runMigrations выполняет миграции базы данных из папки migrations
 func (r *PostgreSQLRepository) runMigrations(dsn string) error {
-	// Открываем соединение через database/sql для миграций
+	// Используем database/sql для совместимости с пакетом миграций
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
+	// Создаем драйвер для миграций
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return err
 	}
 
+	// Инициализируем мигратор
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		"file://migrations", // Путь к файлам миграций
 		"postgres", driver)
 	if err != nil {
 		return err
 	}
 
+	// Применяем миграции
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return err
 	}
@@ -67,11 +71,14 @@ func (r *PostgreSQLRepository) runMigrations(dsn string) error {
 	return nil
 }
 
-// GetValue получает оригинальный URL по короткому
+// GetLongValue возвращает оригинальный URL по короткому ключу
 func (r *PostgreSQLRepository) GetLongValue(shortURL string) (string, error) {
 	var originalURL string
+
+	// Ищем только активные (не удаленные) URL
 	err := r.pool.QueryRow(context.Background(),
-		"SELECT original_url FROM urls WHERE short_url = $1", shortURL).Scan(&originalURL)
+		"SELECT original_url FROM urls WHERE short_url = $1 AND (is_deleted = FALSE OR is_deleted IS NULL)",
+		shortURL).Scan(&originalURL)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -83,7 +90,7 @@ func (r *PostgreSQLRepository) GetLongValue(shortURL string) (string, error) {
 	return originalURL, nil
 }
 
-// GetShortValue получает оригинальный URL по короткому
+// GetShortValue возвращает короткий ключ по оригинальному URL
 func (r *PostgreSQLRepository) GetShortValue(originalURL string) (string, error) {
 	var shortURL string
 	err := r.pool.QueryRow(context.Background(),
@@ -99,7 +106,8 @@ func (r *PostgreSQLRepository) GetShortValue(originalURL string) (string, error)
 	return shortURL, nil
 }
 
-// SetValue сохраняет пару короткий URL - оригинальный URL
+// SetValue сохраняет пару URL в базе данных
+// Использует INSERT с ON CONFLICT для обработки дубликатов
 func (r *PostgreSQLRepository) SetValue(shortURL, originalURL, userID string) error {
 	tx, err := r.pool.Begin(context.Background())
 	if err != nil {
@@ -108,6 +116,7 @@ func (r *PostgreSQLRepository) SetValue(shortURL, originalURL, userID string) er
 	defer tx.Rollback(context.Background())
 
 	var result string
+	// Пытаемся вставить запись, игнорируя конфликты по original_url
 	err = tx.QueryRow(context.Background(),
 		`INSERT INTO urls (short_url, original_url, user_id)
 		 VALUES ($1, $2, $3)
@@ -115,7 +124,7 @@ func (r *PostgreSQLRepository) SetValue(shortURL, originalURL, userID string) er
 		 RETURNING short_url`,
 		shortURL, originalURL, userID).Scan(&result)
 
-	// Запись уже существует
+	// Если запись не вставлена (конфликт), возвращаем ошибку
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrRowExists
 	}
@@ -123,6 +132,7 @@ func (r *PostgreSQLRepository) SetValue(shortURL, originalURL, userID string) er
 		return fmt.Errorf("failed to insert url: %v", err)
 	}
 
+	// Фиксируем транзакцию
 	if err = tx.Commit(context.Background()); err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
@@ -130,7 +140,7 @@ func (r *PostgreSQLRepository) SetValue(shortURL, originalURL, userID string) er
 	return nil
 }
 
-// SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
+// SetValuesBatch сохраняет пакет URL пар в одной транзакции
 func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID string) error {
 	if len(pairs) == 0 {
 		return nil
@@ -142,9 +152,9 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID st
 	}
 	defer tx.Rollback(context.Background())
 
-	// Подготавливаем пакетную вставку
+	// Вставляем каждую пару в транзакции
 	for shortURL, originalURL := range pairs {
-		// Удаляем любую запись с таким short_url (если она не та, что будет обновлена)
+		// Удаляем возможные конфликтующие записи с тем же short_url
 		_, err = tx.Exec(context.Background(),
 			`DELETE FROM urls WHERE short_url = $1 AND original_url != $2`,
 			shortURL, originalURL)
@@ -152,7 +162,7 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID st
 			return fmt.Errorf("failed to delete conflicting short_url: %v", err)
 		}
 
-		// Вставляем или обновляем по original_url
+		// Вставляем новую запись
 		_, err = tx.Exec(context.Background(),
 			`INSERT INTO urls (short_url, original_url, user_id) 
 			 VALUES ($1, $2, $3)`,
@@ -162,6 +172,7 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID st
 		}
 	}
 
+	// Фиксируем всю транзакцию
 	err = tx.Commit(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
@@ -170,10 +181,11 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID st
 	return nil
 }
 
-// GetUserURLs получает все URL пользователя
+// GetUserURLs возвращает все активные URL пользователя
 func (r *PostgreSQLRepository) GetUserURLs(userID string) ([]map[string]string, error) {
 	rows, err := r.pool.Query(context.Background(),
-		"SELECT short_url, original_url FROM urls WHERE user_id = $1", userID)
+		"SELECT short_url, original_url FROM urls WHERE user_id = $1 AND (is_deleted = FALSE OR is_deleted IS NULL)",
+		userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query user urls: %v", err)
 	}
@@ -199,7 +211,64 @@ func (r *PostgreSQLRepository) GetUserURLs(userID string) ([]map[string]string, 
 	return urls, nil
 }
 
-// Close закрывает соединение с БД
+// DeleteURLsBatch помечает URL как удаленные в пакетном режиме
+func (r *PostgreSQLRepository) DeleteURLsBatch(shortURLs []string, userID string) error {
+	if len(shortURLs) == 0 {
+		return nil
+	}
+
+	tx, err := r.pool.Begin(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback(context.Background())
+
+	// Создаем динамический запрос с IN clause
+	placeholders := make([]string, len(shortURLs))
+	args := make([]interface{}, len(shortURLs)+1)
+	args[0] = userID
+
+	for i, shortURL := range shortURLs {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = shortURL
+	}
+
+	query := fmt.Sprintf(`
+		UPDATE urls 
+		SET is_deleted = TRUE 
+		WHERE user_id = $1 AND short_url IN (%s)`,
+		strings.Join(placeholders, ","))
+
+	_, err = tx.Exec(context.Background(), query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to delete urls: %v", err)
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return nil
+}
+
+// IsDeleted проверяет статус удаления URL
+func (r *PostgreSQLRepository) IsDeleted(shortURL string) (bool, error) {
+	var isDeleted bool
+	err := r.pool.QueryRow(context.Background(),
+		"SELECT COALESCE(is_deleted, FALSE) FROM urls WHERE short_url = $1", shortURL).Scan(&isDeleted)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, errors.New("not found key in database")
+		}
+		return false, fmt.Errorf("failed to check deletion status: %v", err)
+	}
+
+	return isDeleted, nil
+}
+
+// Close закрывает пул соединений с базой данных
 func (r *PostgreSQLRepository) Close() error {
 	r.pool.Close()
 	return nil

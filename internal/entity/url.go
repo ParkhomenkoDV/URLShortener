@@ -1,38 +1,56 @@
 package entity
 
+// URL представляет сущность сокращенной ссылки в системе.
+// Содержит информацию как об оригинальном URL, так и о его сокращенной версии,
+// а также метаданные для управления доступом и отслеживания.
 type URL struct {
-	ID          int
-	ShortURL    string
-	OriginalURL string
-	UserID      string
+	ID          int    // Уникальный идентификатор записи в системе
+	ShortURL    string // Сокращенный идентификатор URL (короткая часть)
+	OriginalURL string // Полный оригинальный URL
+	UserID      string // Идентификатор пользователя, создавшего сокращение
+	IsDeleted   bool   // Флаг мягкого удаления (true если запись помечена как удаленная)
 }
 
-// NewURL создаёт новый объект URL
+// NewURL создаёт и инициализирует новый объект URL.
+// Используется для создания сущности сокращенной ссылки со всеми необходимыми атрибутами.
+//
+// Параметры:
+//   - id: уникальный идентификатор записи
+//   - shortURL: сокращенный идентификатор URL
+//   - originalURL: полный оригинальный URL
+//   - userID: идентификатор пользователя-владельца
+//
+// Возвращает указатель на созданный объект URL.
 func NewURL(id int, shortURL, originalURL, userID string) *URL {
 	return &URL{
 		ID:          id,
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
 		UserID:      userID,
+		IsDeleted:   false, // По умолчанию запись не удалена
 	}
 }
 
-// GetShortURL возвращает сокращённый URL
+// GetShortURL возвращает сокращённый идентификатор URL.
+// Это значение используется для создания коротких ссылок и редиректов.
 func (url *URL) GetShortURL() string {
 	return url.ShortURL
 }
 
-// GetOriginalURL возвращает оригинальный URL
+// GetOriginalURL возвращает оригинальный (полный) URL.
+// Это исходный URL, на который происходит перенаправление при обращении к короткой ссылке.
 func (url *URL) GetOriginalURL() string {
 	return url.OriginalURL
 }
 
-// GetID возвращает ID
+// GetID возвращает уникальный идентификатор записи URL в системе.
+// Используется для внутренних операций с базой данных и ссылок между сущностями.
 func (url *URL) GetID() int {
 	return url.ID
 }
 
-// GetUserID возвращает идентификатор пользователя
+// GetUserID возвращает идентификатор пользователя, создавшего сокращение.
+// Используется для проверки прав доступа и фильтрации URL по пользователям.
 func (url *URL) GetUserID() string {
 	return url.UserID
 }
