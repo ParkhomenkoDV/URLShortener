@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -49,6 +50,7 @@ func New(
 	ginEngine.GET("/:id", handler.GetURL)
 	ginEngine.GET("/ping", handler.Ping)
 	ginEngine.GET("/api/user/urls", handler.GetUserURLs)
+	ginEngine.DELETE("/api/user/urls", handler.DeleteUserURLs)
 }
 
 // handleServiceError обрабатывает ошибки сервиса и отправляет соответствующий текстовый ответ
@@ -100,6 +102,7 @@ func (h *Handler) SendURL(c *gin.Context) {
 		h.handleGenericErrorText(c, http.StatusBadRequest, "Error reading request body")
 		return
 	}
+
 	// Получаем userID из контекста
 	userID, _ := c.Get(middleware.UserIDKey)
 	userIDStr := userID.(string)
@@ -234,6 +237,12 @@ func (h *Handler) GetURL(c *gin.Context) {
 	// Получаем параметр из URL: /:id
 	shortURL := c.Param("id")
 
+	// Проверяем, удален ли URL
+	if deleted, err := h.Service.IsDeleted(shortURL); err == nil && deleted {
+		c.Status(http.StatusGone)
+		return
+	}
+
 	// Ищем полную ссылку
 	fullURL, err := h.Service.GetFullURL(shortURL)
 	if err != nil {
@@ -293,4 +302,50 @@ func (h *Handler) GetUserURLs(c *gin.Context) {
 
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, response)
+}
+
+// DeleteUserURLs помечает URL как удаленные для указанного пользователя
+func (h *Handler) DeleteUserURLs(c *gin.Context) {
+	// Проверка Content-Type
+	contentType := c.GetHeader("Content-Type")
+	if !strings.HasPrefix(strings.ToLower(contentType), "application/json") {
+		h.handleGenericErrorJSON(c, http.StatusBadRequest, "Invalid ContentType, application/json only")
+		return
+	}
+
+	// Получаем userID из контекста
+	userID, exists := c.Get(middleware.UserIDKey)
+	if !exists {
+		h.handleGenericErrorJSON(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userIDStr := userID.(string)
+	if userIDStr == "" {
+		h.handleGenericErrorJSON(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	// Получаем данные из body
+	var deleteRequest model.DeleteURLsRequest
+	if err := json.NewDecoder(c.Request.Body).Decode(&deleteRequest); err != nil {
+		h.handleGenericErrorJSON(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Проверяем, что список не пустой
+	if len(deleteRequest) == 0 {
+		h.handleGenericErrorJSON(c, http.StatusBadRequest, "Empty list not allowed")
+		return
+	}
+
+	// Запускаем асинхронное удаление URL с обработкой ошибок
+	go func() {
+		if err := h.Service.DeleteURLsBatch(deleteRequest, userIDStr); err != nil {
+			log.Printf("Error deleting URLs batch for user %s: %v", userIDStr, err)
+		}
+	}()
+
+	// Возвращаем статус 202 Accepted
+	c.Status(http.StatusAccepted)
 }

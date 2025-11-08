@@ -12,6 +12,10 @@ type URLRepository interface {
 	SetValuesBatch(pairs map[string]string, userID string) error
 	// GetUserURLs получает все URL пользователя
 	GetUserURLs(userID string) ([]map[string]string, error)
+	// DeleteURLsBatch помечает URL как удаленные для указанного пользователя
+	DeleteURLsBatch(shortURLs []string, userID string) error
+	// IsDeleted проверяет, помечен ли URL как удаленный
+	IsDeleted(shortURL string) (bool, error)
 	// Close закрывает соединение с хранилищем
 	Close() error
 }

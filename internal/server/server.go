@@ -12,7 +12,7 @@ import (
 	"github.com/ParkhomenkoDV/URLShortener/internal/service"
 )
 
-// HTTP сервер с graceful shutdown
+// HTTP сервер
 type Server struct {
 	httpServer *http.Server
 	service    *service.Service
@@ -29,7 +29,7 @@ func New(address string, handler http.Handler, service *service.Service) *Server
 	}
 }
 
-// Запускает сервер
+// Запуск сервера
 func (s *Server) Start() error {
 	// Канал для получения сигналов завершения
 	quit := make(chan os.Signal, 1)

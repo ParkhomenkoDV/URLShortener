@@ -12,6 +12,7 @@ type FileRepository struct {
 	data         map[string]string
 	reversedData map[string]string
 	userMap      map[string]string
+	deletedMap   map[string]bool
 	mu           sync.RWMutex
 	filePath     string
 	persistence  persistence.JSONPersistence
@@ -23,6 +24,7 @@ func NewFile(filePath string) URLRepository {
 		data:         make(map[string]string),
 		reversedData: make(map[string]string),
 		userMap:      make(map[string]string),
+		deletedMap:   make(map[string]bool),
 		filePath:     filePath,
 		persistence:  persistence.NewFileJSONPersistence(),
 	}
@@ -46,6 +48,11 @@ func NewFile(filePath string) URLRepository {
 func (r *FileRepository) GetLongValue(shortURL string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+
+	// Проверяем, не удален ли URL
+	if deleted, exists := r.deletedMap[shortURL]; exists && deleted {
+		return "", errors.New("not found key in database")
+	}
 
 	if value, ok := r.data[shortURL]; ok {
 		return value, nil
@@ -112,12 +119,49 @@ func (r *FileRepository) GetUserURLs(userID string) ([]map[string]string, error)
 
 	var urls []map[string]string
 	for shortURL, originalURL := range r.data {
+		// Проверяем, что URL принадлежит пользователю и не удален
 		if userID == r.userMap[shortURL] {
-			urls = append(urls, map[string]string{
-				"short_url":    shortURL,
-				"original_url": originalURL,
-			})
+			if deleted, exists := r.deletedMap[shortURL]; !exists || !deleted {
+				urls = append(urls, map[string]string{
+					"short_url":    shortURL,
+					"original_url": originalURL,
+				})
+			}
 		}
 	}
 	return urls, nil
+}
+
+// DeleteURLsBatch помечает множественные URL как удаленные для указанного пользователя
+func (r *FileRepository) DeleteURLsBatch(shortURLs []string, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, shortURL := range shortURLs {
+		// Проверяем, принадлежит ли URL пользователю
+		if ownerID, exists := r.userMap[shortURL]; exists && ownerID == userID {
+			r.deletedMap[shortURL] = true
+		}
+	}
+
+	// Сохраняем в файл (заглушка - для файлового хранилища deleteMap не сохраняется)
+	// В реальной реализации здесь должна быть логика сохранения статуса удаления в файл
+	return nil
+}
+
+// IsDeleted проверяет, помечен ли URL как удаленный
+func (r *FileRepository) IsDeleted(shortURL string) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Проверяем, существует ли URL вообще
+	if _, exists := r.data[shortURL]; !exists {
+		return false, errors.New("not found key in database")
+	}
+
+	// Проверяем статус удаления
+	if deleted, exists := r.deletedMap[shortURL]; exists {
+		return deleted, nil
+	}
+	return false, nil
 }

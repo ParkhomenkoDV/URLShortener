@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -71,7 +72,7 @@ func (r *PostgreSQLRepository) runMigrations(dsn string) error {
 func (r *PostgreSQLRepository) GetLongValue(shortURL string) (string, error) {
 	var originalURL string
 	err := r.pool.QueryRow(context.Background(),
-		"SELECT original_url FROM urls WHERE short_url = $1", shortURL).Scan(&originalURL)
+		"SELECT original_url FROM urls WHERE short_url = $1 AND (is_deleted = FALSE OR is_deleted IS NULL)", shortURL).Scan(&originalURL)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -173,7 +174,7 @@ func (r *PostgreSQLRepository) SetValuesBatch(pairs map[string]string, userID st
 // GetUserURLs получает все URL пользователя
 func (r *PostgreSQLRepository) GetUserURLs(userID string) ([]map[string]string, error) {
 	rows, err := r.pool.Query(context.Background(),
-		"SELECT short_url, original_url FROM urls WHERE user_id = $1", userID)
+		"SELECT short_url, original_url FROM urls WHERE user_id = $1 AND (is_deleted = FALSE OR is_deleted IS NULL)", userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query user urls: %v", err)
 	}
@@ -197,6 +198,63 @@ func (r *PostgreSQLRepository) GetUserURLs(userID string) ([]map[string]string, 
 	}
 
 	return urls, nil
+}
+
+// DeleteURLsBatch помечает множественные URL как удаленные для указанного пользователя
+func (r *PostgreSQLRepository) DeleteURLsBatch(shortURLs []string, userID string) error {
+	if len(shortURLs) == 0 {
+		return nil
+	}
+
+	tx, err := r.pool.Begin(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback(context.Background())
+
+	// Создаем плейсхолдеры для IN clause
+	placeholders := make([]string, len(shortURLs))
+	args := make([]interface{}, len(shortURLs)+1)
+	args[0] = userID
+
+	for i, shortURL := range shortURLs {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = shortURL
+	}
+
+	query := fmt.Sprintf(`
+		UPDATE urls 
+		SET is_deleted = TRUE 
+		WHERE user_id = $1 AND short_url IN (%s)`,
+		strings.Join(placeholders, ","))
+
+	_, err = tx.Exec(context.Background(), query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to delete urls: %v", err)
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return nil
+}
+
+// IsDeleted проверяет, помечен ли URL как удаленный
+func (r *PostgreSQLRepository) IsDeleted(shortURL string) (bool, error) {
+	var isDeleted bool
+	err := r.pool.QueryRow(context.Background(),
+		"SELECT COALESCE(is_deleted, FALSE) FROM urls WHERE short_url = $1", shortURL).Scan(&isDeleted)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, errors.New("not found key in database")
+		}
+		return false, fmt.Errorf("failed to check deletion status: %v", err)
+	}
+
+	return isDeleted, nil
 }
 
 // Close закрывает соединение с БД

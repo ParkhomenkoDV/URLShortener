@@ -35,3 +35,6 @@ type UserURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
+
+// DeleteURLsRequest представляет запрос на удаление URL
+type DeleteURLsRequest []string

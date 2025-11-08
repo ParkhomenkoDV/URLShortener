@@ -5,6 +5,7 @@ type URL struct {
 	ShortURL    string
 	OriginalURL string
 	UserID      string
+	IsDeleted   bool
 }
 
 // NewURL создаёт новый объект URL
@@ -14,6 +15,7 @@ func NewURL(id int, shortURL, originalURL, userID string) *URL {
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
 		UserID:      userID,
+		IsDeleted:   false,
 	}
 }
 

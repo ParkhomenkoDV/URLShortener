@@ -90,6 +90,10 @@ func (s *Service) CreateShortURLsBatch(urls []string, userID string) (map[string
 
 // Получение полного URL
 func (s *Service) GetFullURL(shortURL string) (string, error) {
+	// Проверяем, не удален ли URL
+	if deleted, err := s.Repository.IsDeleted(shortURL); err == nil && deleted {
+		return "", errors.New("url is deleted")
+	}
 	// Ищем полный URL в репозитории, или выдаем ошибку
 	if url, err := s.Repository.GetLongValue(shortURL); err == nil {
 		return url, nil
@@ -111,6 +115,16 @@ func (s *Service) PingPostgreSQL() error {
 	}
 	defer db.Close()
 	return db.Ping()
+}
+
+// DeleteURLsBatch помечает URL как удаленные для указанного пользователя
+func (s *Service) DeleteURLsBatch(shortURLs []string, userID string) error {
+	return s.Repository.DeleteURLsBatch(shortURLs, userID)
+}
+
+// IsDeleted проверяет, помечен ли URL как удаленный
+func (s *Service) IsDeleted(shortURL string) (bool, error) {
+	return s.Repository.IsDeleted(shortURL)
 }
 
 // Close закрывает соединение с репозиторием
