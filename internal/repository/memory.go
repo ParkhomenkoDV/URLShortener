@@ -5,15 +5,15 @@ import (
 	"sync"
 )
 
-// MemoryRepository реализация репозитория для хранения в памяти
+// MemoryRepository реализует хранение данных в оперативной памяти
 type MemoryRepository struct {
-	data       map[string]string // map[short] = long
-	userMap    map[string]string // map[short] = ID
+	data       map[string]string // shortURL -> originalURL
+	userMap    map[string]string // shortURL -> userID
 	deletedMap map[string]bool   // shortURL -> isDeleted
-	mu         sync.RWMutex
+	mu         sync.RWMutex      // Мьютекс для безопасного доступа из горутин
 }
 
-// NewMemory создает новый репозиторий для работы с памятью
+// NewMemory создает новый репозиторий в памяти
 func NewMemory() URLRepository {
 	return &MemoryRepository{
 		data:       make(map[string]string),
@@ -36,15 +36,16 @@ func (mr *MemoryRepository) withWriteLock(fn func() error) error {
 	return fn()
 }
 
-// checkURLExists проверяет существование и статус удаления URL (должен вызываться под блокировкой)
+// checkURLExists проверяет существование URL и его статус удаления
+// Должен вызываться только под блокировкой чтения или записи
 func (mr *MemoryRepository) checkURLExists(shortURL string) (string, error) {
-	// Проверяем, существует ли URL
+	// Проверяем существование URL
 	value, exists := mr.data[shortURL]
 	if !exists {
 		return "", errors.New("not found key in database")
 	}
 
-	// Проверяем, не удален ли URL
+	// Проверяем статус удаления
 	if deleted, exists := mr.deletedMap[shortURL]; exists && deleted {
 		return "", errors.New("not found key in database")
 	}
@@ -52,7 +53,7 @@ func (mr *MemoryRepository) checkURLExists(shortURL string) (string, error) {
 	return value, nil
 }
 
-// GetValue получает оригинальный URL по короткому
+// GetLongValue возвращает оригинальный URL по короткому ключу
 func (mr *MemoryRepository) GetLongValue(shortURL string) (string, error) {
 	var result string
 	var err error
@@ -65,12 +66,13 @@ func (mr *MemoryRepository) GetLongValue(shortURL string) (string, error) {
 	return result, err
 }
 
-// GetShortValue получает короткий URL по оригинальному
+// GetShortValue возвращает короткий ключ по оригинальному URL
 func (mr *MemoryRepository) GetShortValue(originalURL string) (string, error) {
 	var result string
 	var err error
 
 	mr.withReadLock(func() error {
+		// Линейный поиск по значениям (оптимизировать при необходимости)
 		for short, long := range mr.data {
 			if long == originalURL {
 				result = short
@@ -84,9 +86,10 @@ func (mr *MemoryRepository) GetShortValue(originalURL string) (string, error) {
 	return result, err
 }
 
-// SetValue сохраняет пару короткий URL - оригинальный URL
+// SetValue сохраняет пару короткий-оригинальный URL
 func (mr *MemoryRepository) SetValue(shortURL, originalURL, userID string) error {
 	return mr.withWriteLock(func() error {
+		// Проверяем, не существует ли уже такой ключ
 		if _, ok := mr.data[shortURL]; ok {
 			return ErrRowExists
 		}
@@ -96,13 +99,18 @@ func (mr *MemoryRepository) SetValue(shortURL, originalURL, userID string) error
 	})
 }
 
-// SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
+// SetValuesBatch сохраняет пакет URL пар атомарно
 func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string, userID string) error {
 	return mr.withWriteLock(func() error {
-		for key, value := range pairs {
+		// Проверяем все ключи на конфликты
+		for key := range pairs {
 			if _, ok := mr.data[key]; ok {
 				return ErrRowExists
 			}
+		}
+
+		// Сохраняем все пары
+		for key, value := range pairs {
 			mr.data[key] = value
 			mr.userMap[key] = userID
 		}
@@ -110,18 +118,18 @@ func (mr *MemoryRepository) SetValuesBatch(pairs map[string]string, userID strin
 	})
 }
 
-// Close закрывает соединение с хранилищем (для памяти это заглушка)
+// Close закрывает репозиторий (для in-memory реализации это no-op)
 func (mr *MemoryRepository) Close() error {
 	return nil
 }
 
-// GetUserURLs получает все не удаленные URL пользователя
+// GetUserURLs возвращает все активные URL пользователя
 func (mr *MemoryRepository) GetUserURLs(userID string) ([]map[string]string, error) {
 	var urls []map[string]string
 
 	mr.withReadLock(func() error {
 		for shortURL, originalURL := range mr.data {
-			// Проверяем, что URL принадлежит пользователю и не удален
+			// Фильтруем по пользователю и статусу удаления
 			if userID == mr.userMap[shortURL] {
 				if deleted, exists := mr.deletedMap[shortURL]; !exists || !deleted {
 					urls = append(urls, map[string]string{
@@ -137,11 +145,11 @@ func (mr *MemoryRepository) GetUserURLs(userID string) ([]map[string]string, err
 	return urls, nil
 }
 
-// DeleteURLsBatch помечает множественные URL как удаленные для указанного пользователя
+// DeleteURLsBatch помечает URL как удаленные для указанного пользователя
 func (mr *MemoryRepository) DeleteURLsBatch(shortURLs []string, userID string) error {
 	return mr.withWriteLock(func() error {
 		for _, shortURL := range shortURLs {
-			// Проверяем, принадлежит ли URL пользователю
+			// Проверяем права доступа пользователя
 			if ownerID, exists := mr.userMap[shortURL]; exists && ownerID == userID {
 				mr.deletedMap[shortURL] = true
 			}
@@ -150,19 +158,19 @@ func (mr *MemoryRepository) DeleteURLsBatch(shortURLs []string, userID string) e
 	})
 }
 
-// IsDeleted проверяет, помечен ли URL как удаленный
+// IsDeleted проверяет статус удаления URL
 func (mr *MemoryRepository) IsDeleted(shortURL string) (bool, error) {
 	var result bool
 	var err error
 
 	mr.withReadLock(func() error {
-		// Проверяем, существует ли URL вообще
+		// Проверяем существование URL
 		if _, exists := mr.data[shortURL]; !exists {
 			err = errors.New("not found key in database")
 			return err
 		}
 
-		// Проверяем статус удаления
+		// Возвращаем статус удаления
 		if deleted, exists := mr.deletedMap[shortURL]; exists {
 			result = deleted
 		} else {

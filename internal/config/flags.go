@@ -7,78 +7,88 @@ import (
 	"strings"
 )
 
-// ConfigFlags структура для хранения всех конфигурационных параметров
+// ConfigFlags структура для временного хранения конфигурационных параметров
+// перед их преобразованием в основную структуру Config
 type ConfigFlags struct {
-	Port       string
-	ResAddress string
-	FilePath   string
-	AddressDB  string
+	Port       string // Порт сервера
+	ResAddress string // Базовый адрес для сокращенных URL
+	FilePath   string // Путь к файлу хранилища
+	AddressDB  string // Адрес базы данных
 }
 
-// parseFlags обрабатывает аргументы командной строки и возвращает структуру с конфигурацией
+// parseFlags обрабатывает аргументы командной строки и переменные окружения.
+// Приоритет получения параметров (от высшего к низшему):
+//  1. Переменные окружения
+//  2. Флаги командной строки
+//  3. Значения по умолчанию
+//
+// Возвращает ConfigFlags с обработанными значениями.
 func parseFlags() ConfigFlags {
 	var cfg ConfigFlags
-	// Создаем новый FlagSet для избежания конфликтов в тестах
-	fs := flag.NewFlagSet("config", flag.ContinueOnError)
-	// адрес работы HTTP-сервера (localhost:8080 по умолчанию)
-	portFlag := fs.String("a", "localhost:8080", "address and port to run server")
-	// базовый адрес результирующего сокращённого URL значением
-	resAddressFlag := fs.String("b", "http://localhost:8080", "address and port for short url")
-	// путь к локальному файлу БД, значение data/urls.json по умолчанию
-	filePathFlag := fs.String("f", "data/urls.json", "path to the file for storing data")
-	// адрес для БД
-	addressDBFlag := fs.String("d", "", "database address")
 
-	// В тестах os.Args может быть пустым или содержать аргументы теста
+	// Создаем новый FlagSet для изоляции парсинга и избежания конфликтов в тестах
+	fs := flag.NewFlagSet("config", flag.ContinueOnError)
+
+	// Определение флагов командной строки с значениями по умолчанию
+	portFlag := fs.String("a", "localhost:8080", "HTTP server address and port (format: host:port)")
+	resAddressFlag := fs.String("b", "http://localhost:8080", "Base address for shortened URLs (must include http:// or https://)")
+	filePathFlag := fs.String("f", "data/urls.json", "Path to local file storage for URLs")
+	addressDBFlag := fs.String("d", "", "Database connection string (DSN)")
+
+	// Парсим аргументы командной строки, если они присутствуют
+	// В тестовой среде os.Args может быть пустым или содержать аргументы тестов
 	if len(os.Args) > 1 {
-		fs.Parse(os.Args[1:])
+		// Игнорируем ошибки парсинга, так как в тестах могут быть другие флаги
+		_ = fs.Parse(os.Args[1:])
 	}
 
-	// Проверка и обработка адреса сервера
+	// Валидация и обработка адреса сервера
 	portParts := strings.Split(*portFlag, ":")
 	if len(portParts) < 2 {
-		log.Printf("invalid address format: %s, expected format: host:port\n", *portFlag)
-		flag.Usage()
+		log.Printf("Invalid address format: %s, expected format: host:port\n", *portFlag)
+		fs.Usage()
 		os.Exit(2)
 	}
-	cfg.Port = ":" + portParts[1]
+	cfg.Port = ":" + portParts[1] // Сохраняем только порт в формате ":8080"
 
-	// Проверка базового адреса
+	// Валидация базового адреса для сокращенных URL
 	resAddress := *resAddressFlag
 	if !strings.HasPrefix(resAddress, "http://") && !strings.HasPrefix(resAddress, "https://") {
-		log.Printf("invalid base address: %s, must start with http:// or https://\n", resAddress)
-		flag.Usage()
+		log.Printf("Invalid base address: %s, must start with http:// or https://\n", resAddress)
+		fs.Usage()
 		os.Exit(2)
 	}
 	cfg.ResAddress = resAddress
 
-	// Путь до файла с urls
+	// Сохраняем путь к файлу хранилища
 	cfg.FilePath = *filePathFlag
 
-	// Адрес для базы данных
+	// Сохраняем адрес базы данных (может быть пустым, если используется файловое хранилище)
 	cfg.AddressDB = *addressDBFlag
 
-	// Приоритет параметров:
-	// 1. Переменная окружения
-	// 2. Флаг командной строки
-	// 3. Дефолтное значение
+	// ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ИМЕЮТ ВЫСШИЙ ПРИОРИТЕТ ЧЕМ ФЛАГИ КОМАНДНОЙ СТРОКИ
 
-	// Если параметры заданы через переменные окружения, используем их
+	// SERVER_ADDRESS - адрес и порт сервера
 	if envServerAddr := os.Getenv("SERVER_ADDRESS"); envServerAddr != "" {
-		// Обрабатываем переменную окружения SERVER_ADDRESS
 		envPortParts := strings.Split(envServerAddr, ":")
 		if len(envPortParts) >= 2 {
-			cfg.Port = ":" + envPortParts[1]
+			cfg.Port = ":" + envPortParts[1] // Извлекаем порт из формата "host:port"
 		} else {
-			cfg.Port = envServerAddr
+			cfg.Port = envServerAddr // Используем как есть, если порт не указан
 		}
 	}
+
+	// BASE_URL - базовый адрес для сокращенных URL
 	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
 		cfg.ResAddress = envBaseURL
 	}
+
+	// FILE_STORAGE_PATH - путь к файлу хранилища URL
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		cfg.FilePath = envFilePath
 	}
+
+	// DATABASE_DSN - строка подключения к базе данных
 	if envAddressDB := os.Getenv("DATABASE_DSN"); envAddressDB != "" {
 		cfg.AddressDB = envAddressDB
 	}

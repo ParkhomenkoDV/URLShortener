@@ -7,18 +7,18 @@ import (
 	"github.com/ParkhomenkoDV/URLShortener/internal/persistence"
 )
 
-// FileRepository реализация репозитория для хранения в файле
+// FileRepository реализует хранение данных в файле с использованием JSON
 type FileRepository struct {
-	data         map[string]string
-	reversedData map[string]string
-	userMap      map[string]string
-	deletedMap   map[string]bool
-	mu           sync.RWMutex
-	filePath     string
-	persistence  persistence.JSONPersistence
+	data         map[string]string           // shortURL -> originalURL
+	reversedData map[string]string           // originalURL -> shortURL (обратное отображение)
+	userMap      map[string]string           // shortURL -> userID
+	deletedMap   map[string]bool             // shortURL -> isDeleted
+	mu           sync.RWMutex                // Мьютекс для безопасного доступа из горутин
+	filePath     string                      // Путь к файлу данных
+	persistence  persistence.JSONPersistence // Сервис для работы с файловой системой
 }
 
-// NewFile создает новый репозиторий для работы с файлом
+// NewFile создает новый файловый репозиторий и загружает данные из файла
 func NewFile(filePath string) URLRepository {
 	repo := &FileRepository{
 		data:         make(map[string]string),
@@ -29,14 +29,14 @@ func NewFile(filePath string) URLRepository {
 		persistence:  persistence.NewFileJSONPersistence(),
 	}
 
-	// Загружаем данные из файла при инициализации
+	// Загружаем существующие данные из файла при инициализации
 	data, userMap, _, err := repo.persistence.Load(filePath)
 	if err == nil {
 		repo.data = data
 		repo.userMap = userMap
 	}
 
-	// Формирование обратной мапы
+	// Создаем обратное отображение для быстрого поиска по оригинальному URL
 	for originalURL, shortURL := range data {
 		repo.reversedData[originalURL] = shortURL
 	}
@@ -44,7 +44,7 @@ func NewFile(filePath string) URLRepository {
 	return repo
 }
 
-// GetLongValue получает оригинальный URL по короткому
+// GetLongValue возвращает оригинальный URL по его короткой версии
 func (r *FileRepository) GetLongValue(shortURL string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -60,7 +60,7 @@ func (r *FileRepository) GetLongValue(shortURL string) (string, error) {
 	return "", errors.New("not found key in database")
 }
 
-// GetShortValue получает короткий URL по оригинальному
+// GetShortValue возвращает короткий URL по оригинальному URL
 func (r *FileRepository) GetShortValue(originalURL string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -71,55 +71,64 @@ func (r *FileRepository) GetShortValue(originalURL string) (string, error) {
 	return "", errors.New("not found key in database")
 }
 
-// SetValue сохраняет пару короткий URL - оригинальный URL
+// SetValue сохраняет связь между коротким и оригинальным URL
 func (r *FileRepository) SetValue(shortURL, originalURL, userID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Проверяем, не существует ли уже такой короткий URL
 	if _, ok := r.data[shortURL]; ok {
 		return ErrRowExists
 	}
+
 	r.data[shortURL] = originalURL
 	r.userMap[shortURL] = userID
+	r.reversedData[originalURL] = shortURL // Обновляем обратное отображение
 
-	// Сохраняем в файл
+	// Сохраняем изменения в файл
 	return r.persistence.Save(r.filePath, r.data, r.userMap)
 }
 
-// SetValuesBatch сохраняет пакет пар короткий URL - оригинальный URL
+// SetValuesBatch сохраняет пакет URL пар в одном вызове
 func (r *FileRepository) SetValuesBatch(pairs map[string]string, userID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for key, value := range pairs {
+	// Проверяем все пары на конфликты перед сохранением
+	for key, _ := range pairs {
 		if _, ok := r.data[key]; ok {
 			return ErrRowExists
 		}
-		r.data[key] = value
-		r.userMap[key] = userID
 	}
 
-	// Сохраняем в файл
+	// Сохраняем все пары
+	for key, value := range pairs {
+		r.data[key] = value
+		r.userMap[key] = userID
+		r.reversedData[value] = key // Обновляем обратное отображение
+	}
+
+	// Сохраняем изменения в файл
 	return r.persistence.Save(r.filePath, r.data, r.userMap)
 }
 
-// Close закрывает соединение с хранилищем
+// Close сохраняет данные в файл и закрывает репозиторий
 func (r *FileRepository) Close() error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// Финальное сохранение в файл
+	// Финальное сохранение данных в файл
 	return r.persistence.Save(r.filePath, r.data, r.userMap)
 }
 
-// GetUserURLs получает все URL пользователя
+// GetUserURLs возвращает все URL, принадлежащие указанному пользователю
 func (r *FileRepository) GetUserURLs(userID string) ([]map[string]string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var urls []map[string]string
 	for shortURL, originalURL := range r.data {
-		// Проверяем, что URL принадлежит пользователю и не удален
+		// Проверяем принадлежность пользователю и статус удаления
 		if userID == r.userMap[shortURL] {
 			if deleted, exists := r.deletedMap[shortURL]; !exists || !deleted {
 				urls = append(urls, map[string]string{
@@ -132,7 +141,8 @@ func (r *FileRepository) GetUserURLs(userID string) ([]map[string]string, error)
 	return urls, nil
 }
 
-// DeleteURLsBatch помечает множественные URL как удаленные для указанного пользователя
+// DeleteURLsBatch помечает указанные URL как удаленные для заданного пользователя
+// Примечание: в текущей реализации статус удаления не сохраняется в файл
 func (r *FileRepository) DeleteURLsBatch(shortURLs []string, userID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -144,8 +154,8 @@ func (r *FileRepository) DeleteURLsBatch(shortURLs []string, userID string) erro
 		}
 	}
 
-	// Сохраняем в файл (заглушка - для файлового хранилища deleteMap не сохраняется)
-	// В реальной реализации здесь должна быть логика сохранения статуса удаления в файл
+	// ВАЖНО: Для файлового хранилища deleteMap не сохраняется в файл
+	// В реальной реализации необходимо добавить сохранение статуса удаления
 	return nil
 }
 
@@ -154,12 +164,12 @@ func (r *FileRepository) IsDeleted(shortURL string) (bool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// Проверяем, существует ли URL вообще
+	// Проверяем существование URL
 	if _, exists := r.data[shortURL]; !exists {
 		return false, errors.New("not found key in database")
 	}
 
-	// Проверяем статус удаления
+	// Возвращаем статус удаления (по умолчанию false)
 	if deleted, exists := r.deletedMap[shortURL]; exists {
 		return deleted, nil
 	}

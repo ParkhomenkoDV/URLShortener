@@ -10,13 +10,13 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// Сервис сокращения ссылок
+// Service предоставляет функциональность для сокращения URL
 type Service struct {
-	Repository    repository.URLRepository
-	Configuration *config.Config
+	Repository    repository.URLRepository // Репозиторий для хранения данных
+	Configuration *config.Config           // Конфигурация приложения
 }
 
-// Конструктор для сервиса
+// New создает новый экземпляр сервиса
 func New(repo repository.URLRepository, configuration *config.Config) *Service {
 	return &Service{
 		Repository:    repo,
@@ -24,23 +24,25 @@ func New(repo repository.URLRepository, configuration *config.Config) *Service {
 	}
 }
 
-// Создание сокращенного URL
+// CreateShortURL создает сокращенную версию URL
+// Если URL уже существует, возвращает существующую сокращенную версию
 func (s *Service) CreateShortURL(url, userID string) (string, error) {
 	var shortURL string
 
-	// Генерируем сокращенную уникальную ссылку
+	// Генерируем уникальный короткий ключ, избегая коллизий
 	for {
 		shortURL = utils.GenerateShortKey(s.Configuration.LengthKey)
+		// Проверяем, не существует ли уже такой ключ
 		if _, err := s.Repository.GetLongValue(shortURL); err == nil {
-			continue
+			continue // Ключ существует, генерируем новый
 		}
-		break
+		break // Уникальный ключ найден
 	}
 
-	// Сохраняем в репозитории
+	// Сохраняем связь в репозитории
 	if err := s.Repository.SetValue(shortURL, url, userID); err != nil {
 		if errors.Is(err, repository.ErrRowExists) {
-			// Если ссылка уже существует
+			// Если URL уже существует, возвращаем существующую сокращенную версию
 			if shortURL, err = s.Repository.GetShortValue(url); err == nil {
 				return shortURL, repository.ErrRowExists
 			}
@@ -51,29 +53,32 @@ func (s *Service) CreateShortURL(url, userID string) (string, error) {
 	return shortURL, nil
 }
 
-// CreateShortURLsBatch создает сокращенные URL
+// CreateShortURLsBatch создает сокращенные URL для пакета исходных URL
+// Возвращает карту соответствия оригинальных URL и их сокращенных версий
 func (s *Service) CreateShortURLsBatch(urls []string, userID string) (map[string]string, error) {
 	if len(urls) == 0 {
 		return make(map[string]string), nil
 	}
 
-	result, pairs := make(map[string]string), make(map[string]string)
+	result := make(map[string]string) // оригинальный URL -> короткий URL
+	pairs := make(map[string]string)  // короткий URL -> оригинальный URL
 
-	// Генерируем короткие URL для каждого исходного URL
+	// Генерируем уникальные короткие URL для каждого исходного URL
 	for _, originalURL := range urls {
 		var shortURL string
 
 		// Генерируем уникальную короткую ссылку
 		for {
 			shortURL = utils.GenerateShortKey(s.Configuration.LengthKey)
+			// Проверяем на существование в репозитории
 			if _, err := s.Repository.GetLongValue(shortURL); err == nil {
 				continue
 			}
-			// Проверяем на коализии, по хорошему надо бы сделать рекурсию
+			// Проверяем на коллизии внутри текущего пакета
 			if _, exists := pairs[shortURL]; exists {
 				continue
 			}
-			break
+			break // Уникальный ключ найден
 		}
 
 		pairs[shortURL] = originalURL
@@ -88,13 +93,15 @@ func (s *Service) CreateShortURLsBatch(urls []string, userID string) (map[string
 	return result, nil
 }
 
-// Получение полного URL
+// GetFullURL возвращает оригинальный URL по его сокращенной версии
+// Если URL помечен как удаленный, возвращает ошибку
 func (s *Service) GetFullURL(shortURL string) (string, error) {
 	// Проверяем, не удален ли URL
 	if deleted, err := s.Repository.IsDeleted(shortURL); err == nil && deleted {
 		return "", errors.New("url is deleted")
 	}
-	// Ищем полный URL в репозитории, или выдаем ошибку
+
+	// Ищем полный URL в репозитории
 	if url, err := s.Repository.GetLongValue(shortURL); err == nil {
 		return url, nil
 	} else {
@@ -102,12 +109,12 @@ func (s *Service) GetFullURL(shortURL string) (string, error) {
 	}
 }
 
-// GetUserURLs получает все URL пользователя
+// GetUserURLs возвращает все URL, созданные указанным пользователем
 func (s *Service) GetUserURLs(userID string) ([]map[string]string, error) {
 	return s.Repository.GetUserURLs(userID)
 }
 
-// Ping DB
+// PingPostgreSQL проверяет соединение с базой данных PostgreSQL
 func (s *Service) PingPostgreSQL() error {
 	db, err := sql.Open("pgx", s.Configuration.AddressDB)
 	if err != nil {
@@ -117,7 +124,7 @@ func (s *Service) PingPostgreSQL() error {
 	return db.Ping()
 }
 
-// DeleteURLsBatch помечает URL как удаленные для указанного пользователя
+// DeleteURLsBatch помечает указанные URL как удаленные для заданного пользователя
 func (s *Service) DeleteURLsBatch(shortURLs []string, userID string) error {
 	return s.Repository.DeleteURLsBatch(shortURLs, userID)
 }

@@ -10,7 +10,7 @@ import (
 
 // TestAuthService проверяет основную функциональность сервиса аутентификации
 func TestAuthService(t *testing.T) {
-	// Создаем сервис аутентификации
+	// Создаем сервис аутентификации с тестовым ключом
 	authService := New("test-secret-key")
 
 	t.Run("Test GenerateUserID", func(t *testing.T) {
@@ -23,21 +23,24 @@ func TestAuthService(t *testing.T) {
 	t.Run("Test CreateSignedCookie", func(t *testing.T) {
 		userID := authService.GenerateUserID()
 		cookie := authService.CreateSignedCookie(userID)
+
 		if cookie == nil {
 			t.Error("Cookie should not be nil")
-		} else { // possible nil pointer dereference
-			if cookie.Name != "user_id" {
-				t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
-			}
-			if cookie.HttpOnly != true {
-				t.Error("HttpOnly should be true")
-			}
-			if cookie.SameSite != http.SameSiteLaxMode {
-				t.Error("SameSite should be Lax")
-			}
-			if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
-				t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
-			}
+			return
+		}
+
+		// Проверяем основные атрибуты безопасности куки
+		if cookie.Name != "user_id" {
+			t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
+		}
+		if !cookie.HttpOnly {
+			t.Error("HttpOnly should be true for XSS protection")
+		}
+		if cookie.SameSite != http.SameSiteLaxMode {
+			t.Error("SameSite should be Lax for CSRF protection")
+		}
+		if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
+			t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
 		}
 	})
 
@@ -45,6 +48,7 @@ func TestAuthService(t *testing.T) {
 		userID := authService.GenerateUserID()
 		cookie := authService.CreateSignedCookie(userID)
 		extractedUserID, valid := authService.ValidateCookie(cookie.Value)
+
 		if !valid {
 			t.Error("Cookie should be valid")
 		}
@@ -83,12 +87,12 @@ func TestAuthService(t *testing.T) {
 			t.Error("New user ID should not be empty")
 		}
 		if newCookie == nil {
-			t.Error("New cookie should be created")
+			t.Error("New cookie should be created when no valid cookie exists")
 		}
 	})
 }
 
-// TestSignValue проверяет подписание значений
+// TestSignValue проверяет корректность работы подписи значений
 func TestSignValue(t *testing.T) {
 	authService := New("test-secret-key")
 
@@ -128,7 +132,7 @@ func TestSignValue(t *testing.T) {
 	})
 }
 
-// TestCookieFormat проверяет формат куки
+// TestCookieFormat проверяет формат и структуру создаваемых кук
 func TestCookieFormat(t *testing.T) {
 	authService := New("test-secret-key")
 
@@ -137,37 +141,37 @@ func TestCookieFormat(t *testing.T) {
 		userID := "test-user-id"
 		cookie := authService.CreateSignedCookie(userID)
 
-		// Проверяем структуру куки
 		if cookie == nil {
 			t.Error("Cookie should not be nil")
-		} else { // internal/auth/auth_test.go:29:13: possible nil pointer dereference
-			if cookie.Name != "user_id" {
-				t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
-			}
-			if cookie.HttpOnly != true {
-				t.Error("HttpOnly should be true")
-			}
-			if cookie.SameSite != http.SameSiteLaxMode {
-				t.Error("SameSite should be Lax")
-			}
-			if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
-				t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
-			}
-
-			// Проверяем значение куки
-			parts := strings.Split(cookie.Value, ":")
-			if len(parts) != 2 {
-				t.Errorf("Cookie value should have 2 parts separated by ':', got %d parts", len(parts))
-			}
-			if parts[0] != userID {
-				t.Errorf("First part should be user ID %s, got %s", userID, parts[0])
-			}
-			expectedSignature := authService.SignValue(userID)
-			if parts[1] != expectedSignature {
-				t.Errorf("Second part should be signature %s, got %s", expectedSignature, parts[1])
-			}
+			return
 		}
 
+		// Проверяем структуру куки
+		if cookie.Name != "user_id" {
+			t.Errorf("Cookie name should be 'user_id', got %s", cookie.Name)
+		}
+		if !cookie.HttpOnly {
+			t.Error("HttpOnly should be true")
+		}
+		if cookie.SameSite != http.SameSiteLaxMode {
+			t.Error("SameSite should be Lax")
+		}
+		if cookie.MaxAge != int(30*24*time.Hour.Seconds()) {
+			t.Errorf("MaxAge should be 30 days, got %d", cookie.MaxAge)
+		}
+
+		// Проверяем формат значения куки: "user_id:signature"
+		parts := strings.Split(cookie.Value, ":")
+		if len(parts) != 2 {
+			t.Errorf("Cookie value should have 2 parts separated by ':', got %d parts", len(parts))
+		}
+		if parts[0] != userID {
+			t.Errorf("First part should be user ID %s, got %s", userID, parts[0])
+		}
+		expectedSignature := authService.SignValue(userID)
+		if parts[1] != expectedSignature {
+			t.Errorf("Second part should be signature %s, got %s", expectedSignature, parts[1])
+		}
 	})
 
 	// Тест 2: Проверка создания куки с пустым userID
@@ -179,7 +183,7 @@ func TestCookieFormat(t *testing.T) {
 	})
 }
 
-// TestValidateCookie проверяет корректность работы метода валидации куки
+// TestValidateCookie проверяет различные сценарии валидации кук
 func TestValidateCookie(t *testing.T) {
 	authService := New("test-secret-key")
 
@@ -253,9 +257,9 @@ func TestValidateCookie(t *testing.T) {
 		}
 	})
 
-	// Тест 7: Слишком короткий userID
+	// Тест 7: Слишком короткий userID (граничный случай)
 	t.Run("Test short userID", func(t *testing.T) {
-		userID := "a"
+		userID := "a" // минимально возможный userID
 		cookieValue := authService.CreateSignedCookie(userID).Value
 		extractedID, valid := authService.ValidateCookie(cookieValue)
 		if !valid {
